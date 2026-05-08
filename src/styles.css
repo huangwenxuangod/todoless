@@ -404,12 +404,49 @@ button {
   display: grid;
   grid-template-columns: auto 1fr 42px 42px 42px;
   align-items: center;
-  height: 42px;
-  padding: 0 14px 0 0;
+  height: 44px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+    #141414;
+  padding: 0 10px 0 12px;
+  user-select: none;
+}
+
+.chrome-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 180px;
+}
+
+.brand-mark {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background: #0e1012;
+  color: #d7d2c9;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.brand-name {
+  color: #e8e4dc;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.chrome-status {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 8px;
 }
 
 .chrome-crown {
-  margin-left: auto;
   color: #ff9e16;
   fill: #ff9e16;
 }
@@ -425,17 +462,19 @@ button {
   color: #bdbab4;
   cursor: pointer;
   font-size: 24px;
-}
-
-.chrome-button.square::before {
-  width: 15px;
-  height: 15px;
-  border: 2px solid currentColor;
-  content: "";
+  transition:
+    background 140ms ease,
+    color 140ms ease;
 }
 
 .chrome-button:hover {
   background: rgba(255, 255, 255, 0.08);
+  color: #f4f2ed;
+}
+
+.chrome-button.close:hover {
+  background: #c94444;
+  color: #ffffff;
 }
 
 .content-column {

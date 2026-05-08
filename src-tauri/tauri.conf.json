@@ -22,7 +22,7 @@
         "visible": true,
         "center": true,
         "fullscreen": false,
-        "decorations": true,
+        "decorations": false,
         "alwaysOnTop": true,
         "transparent": false,
         "shadow": true
