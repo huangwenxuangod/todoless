@@ -1,10 +1,12 @@
-import { Calendar1, CalendarDays, ChevronDown, Inbox, Mic, Minus, TimerReset, X } from "lucide-react";
+import { Calendar1, CalendarDays, ChevronDown, Inbox, Mic, Minus, Settings, TimerReset, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ToastContainer } from "./components/toast/ToastContainer";
+import { SettingsModal } from "./components/settings/SettingsModal";
 import { formatTaskTime } from "./lib/date";
 import { showToast } from "./stores/toastStore";
+import { initAppSettings } from "./stores/settingsStore";
 import { createTasksFromAgent, hydrateTaskStore, setActiveView, toggleTask, useTaskStore, useVisibleTasks } from "./stores/taskStore";
 import { planTasksFromTranscript, transcribeAudio } from "./services/voiceAgent";
 import type { SmartView, Task, TaskPriority } from "./types/task";
@@ -29,6 +31,8 @@ function WidgetApp() {
   const [state, setState] = useState<"idle" | "recording" | "thinking" | "saved" | "error">("idle");
   const [message, setMessage] = useState("Add task");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -36,6 +40,7 @@ function WidgetApp() {
 
   useEffect(() => {
     void hydrateTaskStore();
+    void initAppSettings();
     const tasksUpdatedPromise = listen("tasks-updated", () => {
       void hydrateTaskStore();
     });
@@ -134,11 +139,17 @@ function WidgetApp() {
   };
 
   const activeView = widgetViews.find((view) => view.id === store.activeView) ?? widgetViews[0];
-  const ActiveIcon = activeView.icon;
   const visibleTasks = openTasks.slice(0, 30);
 
   return (
-    <div className="widget-app">
+    <div
+      className="widget-app"
+      onClick={() => setContextMenu(null)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        setContextMenu({ x: event.clientX, y: event.clientY });
+      }}
+    >
       <header className="widget-header" onPointerDown={startDrag}>
         <div className="widget-title-wrap">
           <button
@@ -147,7 +158,6 @@ function WidgetApp() {
             onPointerDown={(e) => e.stopPropagation()}
             type="button"
           >
-            <ActiveIcon size={15} />
             <span>{activeView.label}</span>
             <ChevronDown size={13} />
           </button>
@@ -219,6 +229,21 @@ function WidgetApp() {
         </button>
       </div>
       <ToastContainer />
+      {contextMenu ? (
+        <div className="widget-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
+          <button
+            onClick={() => {
+              setContextMenu(null);
+              setSettingsOpen(true);
+            }}
+            type="button"
+          >
+            <Settings size={13} />
+            <span>Settings</span>
+          </button>
+        </div>
+      ) : null}
+      {settingsOpen ? <SettingsModal onClose={() => setSettingsOpen(false)} /> : null}
     </div>
   );
 }

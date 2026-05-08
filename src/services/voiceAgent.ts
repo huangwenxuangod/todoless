@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { AgentCreateTasksSchema } from "../types/agent";
 import { createDefaultTodayDueAt } from "../lib/date";
+import { getAppSettings } from "../stores/settingsStore";
 import type { Task, TaskTag } from "../types/task";
 
 type TranscribeResponse = {
@@ -15,9 +16,11 @@ const fallbackTagColor = "#6aa6ff";
 
 export async function transcribeAudio(blob: Blob) {
   const audioBase64 = await blobToBase64(blob);
+  const settings = getAppSettings();
   const response = await invoke<TranscribeResponse>("transcribe_audio", {
     request: {
       audioBase64,
+      model: settings.asrModel,
       mimeType: blob.type || "audio/webm",
     },
   });
@@ -25,17 +28,20 @@ export async function transcribeAudio(blob: Blob) {
 }
 
 export async function planTasksFromTranscript(transcript: string, recentTasks: string[]) {
+  const settings = getAppSettings();
   const response = await invoke<PlanTasksResponse>("plan_tasks", {
     request: {
       transcript,
-      today: new Date().toISOString(),
+      model: settings.textModel,
+      defaultDueTime: settings.defaultDueTime,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Shanghai",
+      today: new Date().toISOString(),
       recentTasks,
     },
   });
   const parsed = AgentCreateTasksSchema.parse(JSON.parse(response.json));
   return parsed.tasks.slice(0, 10).map((task): Omit<Task, "id" | "status" | "createdAt" | "updatedAt" | "completedAt"> => {
-    const dueAt = task.dueAt ?? createDefaultTodayDueAt();
+    const dueAt = task.dueAt ?? createDefaultTodayDueAt(settings.defaultDueTime);
     return {
       title: task.title,
       content: task.content ?? null,

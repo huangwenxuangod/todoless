@@ -43,9 +43,10 @@ export const formatTaskTime = (value: string | null) => {
   return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 };
 
-export const createDefaultTodayDueAt = () => {
+export const createDefaultTodayDueAt = (time = "22:00") => {
   const date = new Date();
-  date.setHours(22, 0, 0, 0);
+  const [hour = "22", minute = "00"] = time.split(":");
+  date.setHours(Number(hour), Number(minute), 0, 0);
   return date.toISOString();
 };
 

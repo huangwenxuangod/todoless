@@ -859,6 +859,181 @@ button {
   font-weight: 650;
 }
 
+.settings-value-button,
+.settings-time-input {
+  min-width: 132px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 12px;
+  text-align: center;
+}
+
+.settings-value-button.recording {
+  border-color: rgba(184, 169, 154, 0.34);
+  color: var(--accent);
+}
+
+.settings-time-input {
+  color-scheme: dark;
+}
+
+.settings-toggle {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.18s ease;
+}
+
+.settings-toggle i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--faint);
+  transition: all 0.18s ease;
+}
+
+.settings-toggle.active {
+  background: var(--accent-soft);
+  border-color: rgba(184, 169, 154, 0.34);
+}
+
+.settings-toggle.active i {
+  left: 21px;
+  background: var(--accent);
+}
+
+.settings-choice-group {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-choice-group > span {
+  color: var(--faint);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-choice {
+  display: grid;
+  gap: 3px;
+  min-height: 54px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.settings-choice strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.settings-choice small {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.settings-choice.active {
+  background: var(--surface-active);
+  border-color: rgba(184, 169, 154, 0.34);
+}
+
+.settings-choice.disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.model-manager {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface) 48%, transparent);
+}
+
+.model-source-row,
+.model-actions,
+.model-progress div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.model-source-row span,
+.model-progress span,
+.model-path {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.model-source-row select {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 10px;
+}
+
+.model-progress {
+  display: grid;
+  gap: 8px;
+}
+
+.model-progress strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.model-progress > i {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.settings-secondary-button {
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 14px;
+}
+
+.settings-secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.model-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Task Detail Card */
 .task-card-overlay {
   position: fixed;
@@ -1256,6 +1431,38 @@ button {
   border-radius: 999px;
   animation: pulse-ring 1400ms ease-out infinite;
   pointer-events: none;
+}
+
+.widget-context-menu {
+  position: fixed;
+  z-index: 120;
+  min-width: 132px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.45);
+  padding: 6px;
+}
+
+.widget-context-menu button {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  padding: 0 10px;
+}
+
+.widget-context-menu button:hover {
+  background: var(--surface-hover);
 }
 
 /* Responsive */

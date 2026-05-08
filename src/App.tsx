@@ -11,11 +11,12 @@ import { ViewSwitcher } from "./components/view/ViewSwitcher";
 import { VoiceWidget } from "./components/voice/VoiceWidget";
 import { useVoiceCapture } from "./hooks/useVoiceCapture";
 import { initTheme } from "./stores/themeStore";
+import { initAppSettings } from "./stores/settingsStore";
 import { hydrateTaskStore, useVisibleTasks } from "./stores/taskStore";
 
 function App() {
   const { openTasks, doneTasks } = useVisibleTasks();
-  const { startRecording, toggleRecording, voiceMessage, voiceState } = useVoiceCapture();
+  const { startRecording, stopRecording, toggleRecording, voiceMessage, voiceState } = useVoiceCapture();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
 
@@ -27,6 +28,7 @@ function App() {
   useEffect(() => {
     void hydrateTaskStore();
     initTheme();
+    void initAppSettings();
     const window = getCurrentWindow();
     const closePromise = window.onCloseRequested(async (event) => {
       event.preventDefault();
@@ -35,6 +37,9 @@ function App() {
     const shortcutPromise = listen("voice-shortcut", () => {
       void startRecording();
     });
+    const shortcutReleasePromise = listen("voice-shortcut-release", () => {
+      stopRecording();
+    });
     const tasksUpdatedPromise = listen("tasks-updated", () => {
       void hydrateTaskStore();
     });
@@ -42,9 +47,10 @@ function App() {
     return () => {
       void closePromise.then((unlisten) => unlisten());
       void shortcutPromise.then((unlisten) => unlisten());
+      void shortcutReleasePromise.then((unlisten) => unlisten());
       void tasksUpdatedPromise.then((unlisten) => unlisten());
     };
-  }, [startRecording]);
+  }, [startRecording, stopRecording]);
 
   return (
     <>
