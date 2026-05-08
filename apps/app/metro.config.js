@@ -12,6 +12,14 @@ config.resolver.extraNodeModules = {
   ...monorepoPackages,
 };
 
-config.watchFolders = [path.resolve(__dirname, "../../packages/shared")];
+config.watchFolders = [
+  path.resolve(__dirname, "../../packages/shared"),
+  path.resolve(__dirname, "../../node_modules"),
+];
+
+config.resolver.nodeModulesPaths = [
+  path.resolve(__dirname, "node_modules"),
+  path.resolve(__dirname, "../../node_modules"),
+];
 
 module.exports = config;

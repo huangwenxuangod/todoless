@@ -3,14 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev:desktop": "bun run --cwd apps/desktop tauri:dev",
     "build:desktop": "bun run --cwd apps/desktop tauri:build",
     "check:desktop": "bun run --cwd apps/desktop check",
     "dev:web": "bun run --cwd apps/web dev",
     "build:web": "bun run --cwd apps/web build",
-    "dev:app": "bun run --cwd apps/app start",
+    "dev:app": "pnpm --filter @todoless/app start",
     "db:start": "supabase start",
     "db:types": "supabase gen types typescript --local > packages/shared/src/sync/schema.ts"
   },
