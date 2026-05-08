@@ -1,6 +1,7 @@
 import { Settings } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WindowChrome } from "./components/chrome/WindowChrome";
 import { SettingsModal } from "./components/settings/SettingsModal";
@@ -11,7 +12,7 @@ import { ViewSwitcher } from "./components/view/ViewSwitcher";
 import { VoiceWidget } from "./components/voice/VoiceWidget";
 import { useVoiceCapture } from "./hooks/useVoiceCapture";
 import { initTheme } from "./stores/themeStore";
-import { initAppSettings } from "./stores/settingsStore";
+import { getAppSettings, initAppSettings } from "./stores/settingsStore";
 import { hydrateTaskStore, useVisibleTasks } from "./stores/taskStore";
 
 function App() {
@@ -32,6 +33,10 @@ function App() {
     const window = getCurrentWindow();
     const closePromise = window.onCloseRequested(async (event) => {
       event.preventDefault();
+      if (getAppSettings().closeBehavior === "quit") {
+        await invoke("quit_app");
+        return;
+      }
       await window.hide();
     });
     const shortcutPromise = listen("voice-shortcut", () => {

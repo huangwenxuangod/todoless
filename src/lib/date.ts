@@ -22,13 +22,15 @@ export const isWithinNext7Days = (value: string | null) => {
   return date >= today && date <= end;
 };
 
-export const taskBelongsToView = (task: Task, view: SmartView) => {
-  if (view === "all") return task.status === "open";
-  if (view === "today") return task.status === "open" && isSameDay(task.dueAt, new Date());
-  if (view === "tomorrow") return task.status === "open" && isSameDay(task.dueAt, addDays(new Date(), 1));
-  if (view === "next7") return task.status === "open" && isWithinNext7Days(task.dueAt);
-  return task.status === "open" && !task.dueAt;
+export const taskMatchesView = (task: Task, view: SmartView) => {
+  if (view === "all") return true;
+  if (view === "today") return isSameDay(task.dueAt, new Date());
+  if (view === "tomorrow") return isSameDay(task.dueAt, addDays(new Date(), 1));
+  if (view === "next7") return isWithinNext7Days(task.dueAt);
+  return true;
 };
+
+export const taskBelongsToView = (task: Task, view: SmartView) => task.status === "open" && taskMatchesView(task, view);
 
 export const formatTaskTime = (value: string | null) => {
   if (!value) return "";

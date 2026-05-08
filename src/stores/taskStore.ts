@@ -1,5 +1,5 @@
 import { useMemo, useSyncExternalStore } from "react";
-import { createDefaultReminderAt, createDefaultTodayDueAt, taskBelongsToView } from "../lib/date";
+import { createDefaultTodayDueAt, taskBelongsToView, taskMatchesView } from "../lib/date";
 import { createId } from "../lib/ids";
 import { initializeDb, insertTask, loadTasksAndTags, recordEvent, softDeleteTask, updateTask, upsertTag } from "../services/db";
 import { showToast } from "./toastStore";
@@ -57,7 +57,13 @@ export function useVisibleTasks() {
 
       return taskBelongsToView(task, current.activeView);
     });
-    const doneTasks = current.tasks.filter((task) => task.status === "done");
+    const doneTasks = current.tasks.filter((task) => {
+      if (current.activeTagId) {
+        return task.status === "done" && task.tags.some((tag) => tag.id === current.activeTagId);
+      }
+
+      return task.status === "done" && taskMatchesView(task, current.activeView);
+    });
 
     return {
       openTasks,

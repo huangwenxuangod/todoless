@@ -1,6 +1,9 @@
 import { Mic2, Monitor, Moon, Settings, Sun, UserCircle, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type React from "react";
+import { SelectMenu } from "../ui/SelectMenu";
+import { useDismissableLayer } from "../../hooks/useDismissableLayer";
+import { useScrollVisibility } from "../../hooks/useScrollVisibility";
 import {
   cancelSenseVoiceDownload,
   deleteSenseVoiceModel,
@@ -14,7 +17,7 @@ import {
 } from "../../services/senseVoiceModel";
 import {
   setAsrModel,
-  setDefaultDueTime,
+  setCloseBehavior,
   setMainAlwaysOnTop,
   setShortcut,
   setTextModel,
@@ -23,6 +26,7 @@ import {
 } from "../../stores/settingsStore";
 import { useThemeStore, setThemeMode } from "../../stores/themeStore";
 import type { ThemeMode } from "../../stores/themeStore";
+import type { AsrModel, CloseBehavior } from "../../stores/settingsStore";
 
 type SettingsTab = "theme" | "general" | "voice" | "account";
 
@@ -39,27 +43,28 @@ const tabs: Array<{ id: SettingsTab; label: string; icon: typeof Sun }> = [
   { id: "account", label: "Account", icon: UserCircle },
 ];
 
+const remoteAsrOptions = [
+  { value: "openai/whisper-large-v3-turbo", label: "Whisper Large V3 Turbo", description: "Default" },
+  { value: "openai/whisper-1", label: "Whisper 1", description: "Fallback" },
+] satisfies Array<{ value: AsrModel; label: string; description?: string }>;
+
+const sourceOptions = [
+  { value: "modelscope", label: "ModelScope", description: "Recommended" },
+  { value: "huggingface", label: "Hugging Face", description: "Fallback" },
+] satisfies Array<{ value: SenseVoiceSource; label: string; description?: string }>;
+
+const closeBehaviorOptions = [
+  { value: "hideToTray", label: "Hide to tray", description: "Keep todoless ready" },
+  { value: "quit", label: "Quit app", description: "Close all windows" },
+] satisfies Array<{ value: CloseBehavior; label: string; description?: string }>;
+
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const { mode } = useThemeStore();
   const [activeTab, setActiveTab] = useState<SettingsTab>("theme");
   const panelRef = useRef<HTMLDivElement>(null);
+  const { onScroll: handleScroll, ref: contentRef } = useScrollVisibility<HTMLDivElement>();
 
-  useEffect(() => {
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    function handleClick(event: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener("keydown", handleKey);
-    document.addEventListener("mousedown", handleClick);
-    return () => {
-      document.removeEventListener("keydown", handleKey);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [onClose]);
+  useDismissableLayer(panelRef, onClose);
 
   return (
     <div className="settings-overlay">
@@ -82,7 +87,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           })}
         </aside>
 
-        <div className="settings-content">
+        <div className="settings-content" onScroll={handleScroll} ref={contentRef}>
           <button aria-label="Close" className="settings-close" onClick={onClose} type="button">
             <X size={18} />
           </button>
@@ -175,15 +180,10 @@ function GeneralPane() {
       </div>
       <div className="settings-row">
         <span>Close behavior</span>
-        <strong>Hide to tray</strong>
-      </div>
-      <div className="settings-row">
-        <span>Default due time</span>
-        <input
-          className="settings-time-input"
-          onChange={(event) => setDefaultDueTime(event.target.value)}
-          type="time"
-          value={settings.defaultDueTime}
+        <SelectMenu
+          value={settings.closeBehavior}
+          onChange={(value) => setCloseBehavior(value)}
+          options={closeBehaviorOptions}
         />
       </div>
     </section>
@@ -217,6 +217,10 @@ function VoicePane() {
   const [status, setStatus] = useState<SenseVoiceStatus | null>(null);
   const [progress, setProgress] = useState<SenseVoiceProgress | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [recognitionMode, setRecognitionMode] = useState<"remote" | "local">(
+    settings.asrModel === "local/sensevoice-small" ? "local" : "remote",
+  );
+  const [showModelDetails, setShowModelDetails] = useState(false);
 
   useEffect(() => {
     void getSenseVoiceStatus().then(setStatus);
@@ -244,84 +248,120 @@ function VoicePane() {
   return (
     <section className="settings-pane">
       <h2>Voice Model</h2>
-      <p>Voice is captured locally, then routed to the selected transcription model.</p>
-      <div className="settings-choice-group">
-        <span>Speech to text</span>
+      <p>Choose how todoless hears you, then how it turns text into tasks.</p>
+
+      <div className="voice-mode-switch">
         <button
-          className={settings.asrModel === "openai/whisper-large-v3-turbo" ? "settings-choice active" : "settings-choice"}
-          onClick={() => setAsrModel("openai/whisper-large-v3-turbo")}
+          className={recognitionMode === "remote" ? "active" : ""}
+          onClick={() => {
+            setRecognitionMode("remote");
+            setAsrModel("openai/whisper-large-v3-turbo");
+          }}
           type="button"
         >
-          <strong>Whisper Large V3 Turbo</strong>
-          <small>Remote · Auto language</small>
+          Remote
         </button>
         <button
-          className={settings.asrModel === "openai/whisper-1" ? "settings-choice active" : "settings-choice"}
-          onClick={() => setAsrModel("openai/whisper-1")}
+          className={recognitionMode === "local" ? "active" : ""}
+          onClick={() => {
+            setRecognitionMode("local");
+            if (status?.installed) setAsrModel("local/sensevoice-small");
+          }}
           type="button"
         >
-          <strong>Whisper 1</strong>
-          <small>Remote · Fallback</small>
-        </button>
-        <button className="settings-choice disabled" disabled type="button">
-          <strong>SenseVoice Small</strong>
-          <small>Local · {status?.installed ? `Installed · ${formatBytes(status.totalBytes)}` : "Not installed · 229 MB"}</small>
+          Local
         </button>
       </div>
-      <div className="model-manager">
-        <div className="model-source-row">
-          <span>Download source</span>
-          <select value={source} onChange={(event) => setSource(event.target.value as SenseVoiceSource)}>
-            <option value="modelscope">ModelScope</option>
-            <option value="huggingface">Hugging Face</option>
-          </select>
-        </div>
-        {progress ? (
-          <div className="model-progress">
-            <div>
-              <span>{progress.file}</span>
-              <strong>{Math.round(progress.percent)}%</strong>
-            </div>
-            <i style={{ width: `${Math.round(progress.percent)}%` }} />
+
+      {recognitionMode === "remote" ? (
+        <section className="settings-block">
+          <div className="settings-block-heading">
+            <span>Remote model</span>
+            <strong>Selected</strong>
           </div>
-        ) : null}
-        <div className="model-actions">
-          {status?.installed ? (
-            <button className="settings-secondary-button" onClick={() => void deleteModel()} type="button">
-              Delete model
-            </button>
-          ) : (
-            <button className="settings-secondary-button" disabled={downloading} onClick={() => void startDownload()} type="button">
-              {downloading ? "Downloading..." : "Download model"}
-            </button>
-          )}
-          {downloading ? (
-            <button className="settings-secondary-button" onClick={() => void cancelSenseVoiceDownload()} type="button">
-              Cancel
-            </button>
-          ) : null}
+          <div className="model-compact-row">
+            <div>
+              <strong>{settings.asrModel === "openai/whisper-1" ? "Whisper 1" : "Whisper Large V3 Turbo"}</strong>
+              <small>OpenRouter · Auto language</small>
+            </div>
+            <SelectMenu
+              value={settings.asrModel === "local/sensevoice-small" ? "openai/whisper-large-v3-turbo" : settings.asrModel}
+              onChange={(value) => setAsrModel(value)}
+              options={remoteAsrOptions}
+            />
+          </div>
+        </section>
+      ) : (
+        <section className="settings-block">
+          <div className="settings-block-heading">
+            <span>Local model</span>
+            <strong>{status?.installed ? "Installed" : "Not installed"}</strong>
+          </div>
+          <div className="model-compact-row">
+            <div>
+              <strong>SenseVoice Small</strong>
+              <small>Offline transcription · 50+ languages · ~229 MB</small>
+            </div>
+            {status?.installed ? (
+              <button className="settings-secondary-button" onClick={() => setAsrModel("local/sensevoice-small")} type="button">
+                Use local
+              </button>
+            ) : null}
+          </div>
+          <div className="model-manager compact">
+            {!status?.installed ? (
+              <div className="model-source-row">
+                <span>Source</span>
+                <SelectMenu value={source} onChange={setSource} options={sourceOptions} />
+              </div>
+            ) : null}
+            {progress ? (
+              <div className="model-progress">
+                <div>
+                  <span>{progress.file}</span>
+                  <strong>{Math.round(progress.percent)}%</strong>
+                </div>
+                <i style={{ width: `${Math.round(progress.percent)}%` }} />
+              </div>
+            ) : null}
+            <div className="model-actions">
+              {status?.installed ? (
+                <button className="settings-secondary-button" onClick={() => void deleteModel()} type="button">
+                  Delete
+                </button>
+              ) : (
+                <button className="settings-secondary-button" disabled={downloading} onClick={() => void startDownload()} type="button">
+                  {downloading ? "Downloading..." : "Download model"}
+                </button>
+              )}
+              {downloading ? (
+                <button className="settings-secondary-button" onClick={() => void cancelSenseVoiceDownload()} type="button">
+                  Cancel
+                </button>
+              ) : null}
+              {status ? (
+                <button className="settings-secondary-button ghost" onClick={() => setShowModelDetails((value) => !value)} type="button">
+                  Details
+                </button>
+              ) : null}
+            </div>
+            {showModelDetails && status ? <small className="model-path">{status.path}</small> : null}
+          </div>
+        </section>
+      )}
+
+      <section className="settings-block">
+        <div className="settings-block-heading">
+          <span>Task understanding</span>
+          <strong>Selected</strong>
         </div>
-        {status ? <small className="model-path">{status.path}</small> : null}
-      </div>
-      <div className="settings-choice-group">
-        <span>Task planner</span>
-        <button
-          className={settings.textModel === "deepseek/deepseek-v4-flash" ? "settings-choice active" : "settings-choice"}
-          onClick={() => setTextModel("deepseek/deepseek-v4-flash")}
-          type="button"
-        >
-          <strong>DeepSeek V4 Flash</strong>
-          <small>OpenRouter · Default</small>
-        </button>
-        <button className="settings-choice disabled" disabled type="button">
-          <strong>Local language model</strong>
-          <small>Not installed</small>
-        </button>
-      </div>
-      <div className="settings-row">
-        <span>Max tasks per voice</span>
-        <strong>10</strong>
-      </div>
+        <div className="model-compact-row">
+          <div>
+            <strong>DeepSeek V4 Flash</strong>
+            <small>OpenRouter · Creates structured tasks</small>
+          </div>
+        </div>
+      </section>
     </section>
   );
 }

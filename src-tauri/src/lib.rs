@@ -383,6 +383,11 @@ fn show_main(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
+}
+
 pub fn run() {
     load_env_files();
 
@@ -394,6 +399,7 @@ pub fn run() {
             transcribe_audio,
             plan_tasks,
             show_main,
+            quit_app,
             set_global_shortcut,
             sensevoice_model_status,
             download_sensevoice_model,

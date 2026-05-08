@@ -2,6 +2,7 @@ import { Archive, Calendar1, CalendarDays, ChevronDown, Inbox, Tag, TimerReset }
 import { useMemo, useState } from "react";
 import { setActiveView, useTaskStore } from "../../stores/taskStore";
 import type { SmartView } from "../../types/task";
+import { DropdownMenu } from "../ui/DropdownMenu";
 
 const viewLabels: Record<SmartView, string> = {
   all: "All",
@@ -48,24 +49,19 @@ export function ViewSwitcher() {
 
 function ViewMenu({ activeView, onClose }: { activeView: SmartView; onClose: () => void }) {
   return (
-    <div className="view-menu">
-      {switchableViews.map((view) => {
-        const Icon = viewIcons[view];
-        return (
-          <button
-            className={activeView === view ? "view-menu-item active" : "view-menu-item"}
-            key={view}
-            onClick={() => {
-              setActiveView(view);
-              onClose();
-            }}
-            type="button"
-          >
-            <Icon size={14} />
-            <span>{viewLabels[view]}</span>
-          </button>
-        );
-      })}
-    </div>
+    <DropdownMenu
+      activeValue={activeView}
+      className="view-menu"
+      itemClassName="view-menu-item"
+      onSelect={(view) => {
+        setActiveView(view);
+        onClose();
+      }}
+      options={switchableViews.map((view) => ({
+        icon: viewIcons[view],
+        label: viewLabels[view],
+        value: view,
+      }))}
+    />
   );
 }

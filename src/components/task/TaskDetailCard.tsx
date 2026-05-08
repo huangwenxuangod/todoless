@@ -1,7 +1,8 @@
 import { CalendarDays, Inbox, X } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { toggleTask } from "../../stores/taskStore";
+import { useRef } from "react";
+import { useDismissableLayer } from "../../hooks/useDismissableLayer";
 import type { Task } from "../../types/task";
+import { TaskCheckbox } from "./TaskParts";
 
 function formatDetailDate(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -24,32 +25,10 @@ function formatDetailDate(dateStr: string | null): string {
   return `${month} ${day}${dayLabel ? ", " + dayLabel : ""}, ${time}`;
 }
 
-const priorityClass: Record<number, string> = {
-  0: "priority-none",
-  1: "priority-low",
-  2: "priority-medium",
-  3: "priority-high",
-};
-
 export function TaskDetailCard({ onClose, task }: { onClose: () => void; task: Task }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    function handleClick(event: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener("keydown", handleKey);
-    document.addEventListener("mousedown", handleClick);
-    return () => {
-      document.removeEventListener("keydown", handleKey);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [onClose]);
+  useDismissableLayer(panelRef, onClose);
 
   const dateText = formatDetailDate(task.reminderAt ?? task.dueAt);
 
@@ -57,14 +36,7 @@ export function TaskDetailCard({ onClose, task }: { onClose: () => void; task: T
     <div className="task-card-overlay">
       <div ref={panelRef} className="task-card">
         <div className="task-card-header">
-          <button
-            aria-label={task.status === "done" ? "Mark open" : "Complete"}
-            className={`check-indicator ${priorityClass[task.priority]} ${task.status === "done" ? "done" : ""}`}
-            onClick={() => void toggleTask(task.id)}
-            type="button"
-          >
-            {task.status === "done" ? "✓" : null}
-          </button>
+          <TaskCheckbox task={task} />
 
           {dateText ? (
             <span className="task-card-date">

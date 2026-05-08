@@ -1,9 +1,19 @@
 import type React from "react";
 import { Minus, Maximize2, X } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getAppSettings } from "../../stores/settingsStore";
 
 export function WindowChrome() {
   const window = getCurrentWindow();
+  const closeWindow = async () => {
+    if (getAppSettings().closeBehavior === "quit") {
+      await invoke("quit_app");
+      return;
+    }
+    await window.hide();
+  };
+
   const startDrag = (event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
     if (event.target instanceof Element && event.target.closest("button")) return;
@@ -36,7 +46,7 @@ export function WindowChrome() {
         <button
           aria-label="Close"
           className="chrome-button close"
-          onClick={() => void window.hide()}
+          onClick={() => void closeWindow()}
           onPointerDown={(event) => event.stopPropagation()}
           type="button"
         >

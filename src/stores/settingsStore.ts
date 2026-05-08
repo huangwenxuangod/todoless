@@ -4,12 +4,14 @@ import { useSyncExternalStore } from "react";
 
 export type AsrModel = "openai/whisper-large-v3-turbo" | "openai/whisper-1" | "local/sensevoice-small";
 export type TextModel = "deepseek/deepseek-v4-flash" | "local/default";
+export type CloseBehavior = "hideToTray" | "quit";
 
 export type AppSettings = {
   mainAlwaysOnTop: boolean;
   widgetAlwaysOnTop: boolean;
   shortcut: string;
   defaultDueTime: string;
+  closeBehavior: CloseBehavior;
   asrModel: AsrModel;
   textModel: TextModel;
 };
@@ -21,6 +23,7 @@ const defaultSettings: AppSettings = {
   widgetAlwaysOnTop: true,
   shortcut: "Ctrl+Shift+Space",
   defaultDueTime: "22:00",
+  closeBehavior: "hideToTray",
   asrModel: "openai/whisper-large-v3-turbo",
   textModel: "deepseek/deepseek-v4-flash",
 };
@@ -67,6 +70,10 @@ export async function setShortcut(shortcut: string) {
 
 export function setDefaultDueTime(defaultDueTime: string) {
   updateSettings({ defaultDueTime });
+}
+
+export function setCloseBehavior(closeBehavior: CloseBehavior) {
+  updateSettings({ closeBehavior });
 }
 
 export function setAsrModel(asrModel: AsrModel) {
