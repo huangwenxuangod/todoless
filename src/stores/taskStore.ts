@@ -2,6 +2,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { createDefaultReminderAt, createDefaultTodayDueAt, taskBelongsToView } from "../lib/date";
 import { createId } from "../lib/ids";
 import { initializeDb, insertTask, loadTasksAndTags, recordEvent, softDeleteTask, updateTask, upsertTag } from "../services/db";
+import { showToast } from "./toastStore";
 import type { SmartView, Task, TaskPriority, TaskStatus, TaskTag } from "../types/task";
 
 type TaskStoreState = {
@@ -78,10 +79,12 @@ export async function hydrateTaskStore() {
       error: null,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(message, "error");
     emit({
       ...state,
       isReady: true,
-      error: error instanceof Error ? error.message : String(error),
+      error: null,
     });
   }
 }

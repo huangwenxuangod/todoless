@@ -12,6 +12,7 @@ fn ping() -> &'static str {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct TranscribeRequest {
     audio_base64: String,
     mime_type: String,
@@ -23,6 +24,7 @@ struct TranscribeResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PlanTasksRequest {
     transcript: String,
     today: String,
@@ -175,8 +177,9 @@ pub fn run() {
         ])
         .setup(|app| {
             let show = MenuItem::with_id(app, "show", "Show todoless", true, None::<&str>)?;
+            let open_widget = MenuItem::with_id(app, "open_widget", "Open Widget", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &quit])?;
+            let menu = Menu::with_items(app, &[&show, &open_widget, &quit])?;
 
             let _tray = TrayIconBuilder::new()
                 .tooltip("todoless")
@@ -202,6 +205,13 @@ pub fn run() {
         .on_menu_event(|app, event| match event.id().as_ref() {
             "show" => {
                 if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                }
+            }
+            "open_widget" => {
+                if let Some(window) = app.get_webview_window("widget") {
                     let _ = window.show();
                     let _ = window.unminimize();
                     let _ = window.set_focus();

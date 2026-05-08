@@ -37,8 +37,8 @@ export function ViewSwitcher() {
   return (
     <div className="title-wrap">
       <button className="view-title" onClick={() => setIsOpen((value) => !value)} type="button">
-        <ActiveIcon size={22} />
-        {currentTitle}
+        <ActiveIcon size={18} />
+        <span>{currentTitle}</span>
         <ChevronDown size={18} />
       </button>
       {isOpen ? <ViewMenu activeView={store.activeView} onClose={() => setIsOpen(false)} /> : null}
@@ -61,7 +61,7 @@ function ViewMenu({ activeView, onClose }: { activeView: SmartView; onClose: () 
             }}
             type="button"
           >
-            <Icon size={16} />
+            <Icon size={14} />
             <span>{viewLabels[view]}</span>
           </button>
         );

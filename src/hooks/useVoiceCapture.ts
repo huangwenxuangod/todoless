@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { createTasksFromAgent, getSnapshot } from "../stores/taskStore";
+import { showToast } from "../stores/toastStore";
 import { planTasksFromTranscript, transcribeAudio } from "../services/voiceAgent";
 
 export type VoiceState = "idle" | "recording" | "transcribing" | "planning" | "saved" | "error";
@@ -29,13 +30,20 @@ export function useVoiceCapture() {
       await emit("tasks-updated", { count: created.length });
       setVoiceState("saved");
       setVoiceMessage(`Created ${created.length} task${created.length > 1 ? "s" : ""}`);
+      showToast(`Created ${created.length} task${created.length > 1 ? "s" : ""}`, "success");
       window.setTimeout(() => {
         setVoiceState("idle");
         setVoiceMessage("Ctrl Shift Space");
       }, 1800);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      showToast(message, "error");
       setVoiceState("error");
-      setVoiceMessage(error instanceof Error ? error.message : String(error));
+      setVoiceMessage("Error");
+      window.setTimeout(() => {
+        setVoiceState("idle");
+        setVoiceMessage("Ctrl Shift Space");
+      }, 2000);
     }
   }, []);
 
@@ -60,9 +68,15 @@ export function useVoiceCapture() {
       setVoiceState("recording");
       setVoiceMessage("Listening...");
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Microphone unavailable";
+      showToast(message, "error");
       setVoiceState("error");
-      setVoiceMessage(error instanceof Error ? error.message : "Microphone unavailable");
+      setVoiceMessage("Error");
       setIsRecording(false);
+      window.setTimeout(() => {
+        setVoiceState("idle");
+        setVoiceMessage("Ctrl Shift Space");
+      }, 2000);
     }
   }, [processVoice]);
 
@@ -84,6 +98,7 @@ export function useVoiceCapture() {
   return {
     isRecording,
     startRecording,
+    stopRecording,
     toggleRecording,
     voiceMessage,
     voiceState,

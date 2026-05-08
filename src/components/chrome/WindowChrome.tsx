@@ -1,5 +1,5 @@
 import type React from "react";
-import { Minus, Settings, Square, X } from "lucide-react";
+import { Minus, Maximize2, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export function WindowChrome() {
@@ -12,22 +12,37 @@ export function WindowChrome() {
 
   return (
     <header className="window-chrome" onPointerDown={startDrag}>
-      <div className="chrome-brand">
-        <span className="brand-mark">tl</span>
-        <span className="brand-name">todoless</span>
+      <span className="brand-mark">tl</span>
+
+      <div className="window-controls">
+        <button
+          aria-label="Minimize"
+          className="chrome-button"
+          onClick={() => void window.minimize()}
+          onPointerDown={(event) => event.stopPropagation()}
+          type="button"
+        >
+          <Minus size={10} strokeWidth={2.5} />
+        </button>
+        <button
+          aria-label="Maximize"
+          className="chrome-button"
+          onClick={() => void window.toggleMaximize()}
+          onPointerDown={(event) => event.stopPropagation()}
+          type="button"
+        >
+          <Maximize2 size={9} strokeWidth={2.5} />
+        </button>
+        <button
+          aria-label="Close"
+          className="chrome-button close"
+          onClick={() => void window.hide()}
+          onPointerDown={(event) => event.stopPropagation()}
+          type="button"
+        >
+          <X size={10} strokeWidth={2.5} />
+        </button>
       </div>
-      <button className="chrome-settings" title="Settings" type="button" onPointerDown={(event) => event.stopPropagation()}>
-        <Settings size={17} />
-      </button>
-      <button className="chrome-button" aria-label="Minimize" onClick={() => void window.minimize()} onPointerDown={(event) => event.stopPropagation()} type="button">
-        <Minus size={18} />
-      </button>
-      <button className="chrome-button" aria-label="Maximize" onClick={() => void window.toggleMaximize()} onPointerDown={(event) => event.stopPropagation()} type="button">
-        <Square size={15} />
-      </button>
-      <button className="chrome-button close" aria-label="Close" onClick={() => void window.hide()} onPointerDown={(event) => event.stopPropagation()} type="button">
-        <X size={18} />
-      </button>
     </header>
   );
 }
