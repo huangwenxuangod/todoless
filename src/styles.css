@@ -105,20 +105,19 @@ button {
 /* Voice Button */
 .voice-bar {
   position: fixed;
-  right: 26px;
-  bottom: 26px;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 20;
-  display: grid;
-  width: 66px;
-  height: 66px;
-  place-items: center;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
   border-radius: 999px;
-  background: rgba(26, 25, 23, 0.72);
+  background: var(--surface);
   border: 1px solid var(--line);
-  backdrop-filter: blur(14px);
   box-shadow:
-    0 14px 40px rgba(0, 0, 0, 0.44),
+    0 8px 32px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(245, 240, 232, 0.02);
   color: var(--text);
   cursor: pointer;
@@ -136,11 +135,11 @@ button {
 
 .voice-bar-dot {
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: 36px;
+  height: 36px;
   place-items: center;
   border-radius: 999px;
-  background: #30395f;
+  background: var(--surface-hover);
   color: var(--muted);
   flex-shrink: 0;
 }
@@ -158,6 +157,16 @@ button {
 .voice-bar.error .voice-bar-dot {
   background: rgba(184, 122, 114, 0.15);
   color: var(--error);
+}
+
+.voice-bar-text {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.voice-bar.recording .voice-bar-text {
+  color: var(--accent);
 }
 
 .voice-meter {
@@ -585,6 +594,21 @@ button {
   color: inherit;
 }
 
+.completed-date-group {
+  display: flex;
+  flex-direction: column;
+  padding-top: 6px;
+}
+
+.completed-date-label {
+  padding: 8px 0 2px;
+  color: var(--faint);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 /* Empty State */
 .empty-state {
   display: flex;
@@ -674,38 +698,77 @@ button {
   place-items: center;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
+  padding: 24px;
 }
 
 .settings-panel {
-  width: 320px;
-  border-radius: 14px;
+  width: min(860px, 100%);
+  height: min(620px, 100%);
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  border-radius: 16px;
   background: var(--panel);
   border: 1px solid var(--line);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 
-.settings-header {
+.settings-nav {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--line-soft);
+  flex-direction: column;
+  gap: 6px;
+  padding: 22px 12px;
+  background: color-mix(in srgb, var(--surface) 54%, transparent);
+  border-right: 1px solid var(--line);
 }
 
-.settings-title {
-  font-size: 16px;
-  font-weight: 600;
+.settings-nav-title {
+  padding: 0 12px 12px;
+  color: var(--faint);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-nav-item {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.settings-nav-item:hover,
+.settings-nav-item.active {
+  background: var(--surface-hover);
   color: var(--text);
 }
 
+.settings-content {
+  position: relative;
+  min-width: 0;
+  padding: 28px 34px;
+  overflow: hidden;
+}
+
 .settings-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: var(--faint);
   cursor: pointer;
@@ -714,14 +777,27 @@ button {
 
 .settings-close:hover {
   background: var(--surface-hover);
-  color: var(--muted);
+  color: var(--text);
 }
 
-.settings-section {
-  padding: 20px;
+.settings-pane {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
+  max-width: 560px;
+}
+
+.settings-pane h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 750;
+}
+
+.settings-pane p {
+  margin: -8px 0 4px;
+  color: var(--faint);
+  font-size: 13px;
 }
 
 .settings-label {
@@ -764,6 +840,23 @@ button {
   background: var(--surface-active);
   color: var(--text);
   border-color: var(--accent);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  gap: 16px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.settings-row strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
 }
 
 /* Task Detail Card */
@@ -880,8 +973,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 42px;
-  padding: 0 12px;
+  height: 46px;
+  padding: 0 14px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   -webkit-app-region: drag;
@@ -904,7 +997,7 @@ button {
   background: transparent;
   color: var(--text);
   cursor: pointer;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
   padding: 0 4px;
 }
@@ -983,13 +1076,13 @@ button {
   flex: 1;
   overflow: auto;
   overflow-x: hidden;
-  padding: 10px 12px 68px;
+  padding: 14px 14px 82px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(245, 240, 232, 0.26) transparent;
+  scrollbar-color: transparent transparent;
 }
 
 .widget-scroll::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .widget-scroll::-webkit-scrollbar-track {
@@ -997,8 +1090,16 @@ button {
 }
 
 .widget-scroll::-webkit-scrollbar-thumb {
-  background-color: rgba(245, 240, 232, 0.26);
+  background-color: transparent;
   border-radius: 4px;
+}
+
+.widget-scroll.scrolling {
+  scrollbar-color: rgba(245, 240, 232, 0.28) transparent;
+}
+
+.widget-scroll.scrolling::-webkit-scrollbar-thumb {
+  background-color: rgba(245, 240, 232, 0.28);
 }
 
 .widget-empty {
@@ -1011,9 +1112,9 @@ button {
 .widget-task {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
-  min-height: 48px;
-  padding: 9px 6px;
+  gap: 11px;
+  min-height: 58px;
+  padding: 12px 8px;
   border-bottom: 1px solid var(--line-soft);
   border-radius: 6px;
   cursor: pointer;
@@ -1025,11 +1126,11 @@ button {
 }
 
 .widget-check {
-  width: 14px;
-  height: 14px;
+  width: 17px;
+  height: 17px;
   margin-top: 2px;
   border: 1.8px solid var(--priority-none);
-  border-radius: 4px;
+  border-radius: 50%;
   background: transparent;
   flex-shrink: 0;
   cursor: pointer;
@@ -1056,7 +1157,7 @@ button {
 }
 
 .widget-task-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 450;
   line-height: 1.4;
   color: var(--text);
@@ -1102,28 +1203,25 @@ button {
 
 .widget-add-task {
   position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
+  right: 16px;
+  bottom: 16px;
   z-index: 20;
 }
 
 .widget-add-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  height: 40px;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
   backdrop-filter: blur(10px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.36);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(245, 240, 232, 0.04);
   color: var(--muted);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
   transition: all 0.2s ease;
   position: relative;
 }

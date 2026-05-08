@@ -31,6 +31,8 @@ function WidgetApp() {
   const [menuOpen, setMenuOpen] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     void hydrateTaskStore();
@@ -41,6 +43,22 @@ function WidgetApp() {
       void tasksUpdatedPromise.then((unlisten) => unlisten());
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
+  }, []);
+
+  const handleScroll = () => {
+    const element = scrollRef.current;
+    if (!element) return;
+    element.classList.add("scrolling");
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      element.classList.remove("scrolling");
+    }, 700);
+  };
 
   const start = async () => {
     if (recorderRef.current?.state === "recording") return;
@@ -169,7 +187,7 @@ function WidgetApp() {
           <button
             aria-label="Close"
             className="widget-chrome-btn"
-            onClick={() => void window.close()}
+            onClick={() => void window.hide()}
             onPointerDown={(e) => e.stopPropagation()}
             type="button"
           >
@@ -178,7 +196,7 @@ function WidgetApp() {
         </div>
       </header>
 
-      <div className="widget-scroll">
+      <div className="widget-scroll" onScroll={handleScroll} ref={scrollRef}>
         {visibleTasks.length === 0 ? (
           <div className="widget-empty">No tasks yet</div>
         ) : (
@@ -193,11 +211,11 @@ function WidgetApp() {
             if (state === "recording") stop();
             else void start();
           }}
+          title={message}
           type="button"
         >
           {state === "recording" ? <i className="widget-pulse" /> : null}
           <Mic size={16} />
-          <span>{message}</span>
         </button>
       </div>
       <ToastContainer />

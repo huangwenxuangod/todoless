@@ -224,7 +224,7 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" {
+                if window.label() == "main" || window.label() == "widget" {
                     api.prevent_close();
                     let _ = window.hide();
                 }
