@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "app.todoless.desktop",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 1420",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "node node_modules/typescript/bin/tsc --noEmit && node node_modules/vite/bin/vite.js build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -18,9 +18,11 @@
         "minWidth": 860,
         "minHeight": 620,
         "resizable": true,
+        "visible": true,
+        "center": true,
         "fullscreen": false,
-        "decorations": false,
-        "alwaysOnTop": false,
+        "decorations": true,
+        "alwaysOnTop": true,
         "transparent": false,
         "shadow": true
       }
