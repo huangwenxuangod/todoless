@@ -45,7 +45,7 @@ export const formatTaskTime = (value: string | null) => {
 
 export const createDefaultTodayDueAt = () => {
   const date = new Date();
-  date.setHours(23, 59, 0, 0);
+  date.setHours(22, 0, 0, 0);
   return date.toISOString();
 };
 

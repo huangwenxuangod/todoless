@@ -1,8 +1,8 @@
 import { useMemo, useSyncExternalStore } from "react";
-import { seedTags, seedTasks } from "../data/seed";
 import { createDefaultReminderAt, createDefaultTodayDueAt, taskBelongsToView } from "../lib/date";
 import { createId } from "../lib/ids";
-import type { SmartView, Task, TaskPriority, TaskTag } from "../types/task";
+import { initializeDb, insertTask, loadTasksAndTags, recordEvent, softDeleteTask, updateTask, upsertTag } from "../services/db";
+import type { SmartView, Task, TaskPriority, TaskStatus, TaskTag } from "../types/task";
 
 type TaskStoreState = {
   tasks: Task[];
@@ -10,34 +10,25 @@ type TaskStoreState = {
   activeView: SmartView;
   activeTagId: string | null;
   recentTaskIds: string[];
+  isReady: boolean;
+  error: string | null;
 };
-
-const storageKey = "todoless.task-store.v1";
 
 const initialState: TaskStoreState = {
-  tasks: seedTasks,
-  tags: seedTags,
-  activeView: "inbox",
+  tasks: [],
+  tags: [],
+  activeView: "today",
   activeTagId: null,
-  recentTaskIds: seedTasks.slice(0, 10).map((task) => task.id),
+  recentTaskIds: [],
+  isReady: false,
+  error: null,
 };
 
-let state = loadState();
+let state = initialState;
 const listeners = new Set<() => void>();
-
-function loadState(): TaskStoreState {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return initialState;
-    return { ...initialState, ...JSON.parse(raw) };
-  } catch {
-    return initialState;
-  }
-}
 
 function emit(next: TaskStoreState) {
   state = next;
-  localStorage.setItem(storageKey, JSON.stringify(state));
   listeners.forEach((listener) => listener());
 }
 
@@ -74,6 +65,27 @@ export function useVisibleTasks() {
   }, [current]);
 }
 
+export async function hydrateTaskStore() {
+  try {
+    await initializeDb();
+    const { tasks, tags } = await loadTasksAndTags();
+    emit({
+      ...state,
+      tasks,
+      tags,
+      recentTaskIds: tasks.slice(0, 10).map((task) => task.id),
+      isReady: true,
+      error: null,
+    });
+  } catch (error) {
+    emit({
+      ...state,
+      isReady: true,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 export function setActiveView(activeView: SmartView) {
   emit({ ...state, activeView, activeTagId: null });
 }
@@ -82,24 +94,24 @@ export function setActiveTag(activeTagId: string) {
   emit({ ...state, activeView: "all", activeTagId });
 }
 
-export function toggleTask(id: string) {
+export async function toggleTask(id: string) {
   const now = new Date().toISOString();
-  emit({
-    ...state,
-    tasks: state.tasks.map((task) =>
-      task.id === id
-        ? {
-            ...task,
-            status: task.status === "done" ? "open" : "done",
-            completedAt: task.status === "done" ? null : now,
-            updatedAt: now,
-          }
-        : task,
-    ),
+  const nextTasks: Task[] = state.tasks.map((task) => {
+    if (task.id !== id) return task;
+    const status: TaskStatus = task.status === "done" ? "open" : "done";
+    return {
+      ...task,
+      status,
+      completedAt: task.status === "done" ? null : now,
+      updatedAt: now,
+    };
   });
+  emit({ ...state, tasks: nextTasks });
+  const task = nextTasks.find((item) => item.id === id);
+  if (task) await updateTask(task, task.status === "done" ? "task.completed" : "task.reopened", { id, completedAt: task.completedAt });
 }
 
-export function createTask(title: string) {
+export async function createTask(title: string) {
   const now = new Date().toISOString();
   const dueAt = createDefaultTodayDueAt();
   const task: Task = {
@@ -108,7 +120,7 @@ export function createTask(title: string) {
     content: null,
     status: "open",
     dueAt,
-    reminderAt: createDefaultReminderAt(dueAt),
+    reminderAt: null,
     priority: 1,
     tags: [],
     createdAt: now,
@@ -121,12 +133,63 @@ export function createTask(title: string) {
     tasks: [task, ...state.tasks],
     recentTaskIds: [task.id, ...state.recentTaskIds].slice(0, 10),
   });
+  await insertTask(task);
 }
 
-export function updateTaskPriority(id: string, priority: TaskPriority) {
+export async function createTasksFromAgent(tasks: Array<Omit<Task, "id" | "status" | "createdAt" | "updatedAt" | "completedAt">>, transcript: string) {
   const now = new Date().toISOString();
+  const created: Task[] = [];
+  await recordEvent("voice.transcript", { transcript });
+
+  for (const item of tasks.slice(0, 10)) {
+    const tags: TaskTag[] = [];
+    for (const tag of item.tags) {
+      tags.push(await upsertTag(tag.name, tag.color, tag.id));
+    }
+    const task: Task = {
+      id: createId(),
+      title: item.title,
+      content: item.content,
+      status: "open",
+      dueAt: item.dueAt,
+      reminderAt: item.reminderAt,
+      priority: item.priority,
+      tags,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+    };
+    created.push(task);
+    await insertTask(task, "voice.task.created");
+  }
+
   emit({
     ...state,
-    tasks: state.tasks.map((task) => (task.id === id ? { ...task, priority, updatedAt: now } : task)),
+    tasks: [...created, ...state.tasks],
+    tags: mergeTags(state.tags, created.flatMap((task) => task.tags)),
+    recentTaskIds: [...created.map((task) => task.id), ...state.recentTaskIds].slice(0, 10),
   });
+
+  return created;
+}
+
+export async function updateTaskPriority(id: string, priority: TaskPriority) {
+  const now = new Date().toISOString();
+  const nextTasks = state.tasks.map((task) => (task.id === id ? { ...task, priority, updatedAt: now } : task));
+  emit({ ...state, tasks: nextTasks });
+  const task = nextTasks.find((item) => item.id === id);
+  if (task) await updateTask(task, "task.priority.updated", { id, priority });
+}
+
+export async function deleteTask(id: string) {
+  emit({ ...state, tasks: state.tasks.filter((task) => task.id !== id) });
+  await softDeleteTask(id);
+}
+
+function mergeTags(current: TaskTag[], incoming: TaskTag[]) {
+  const map = new Map(current.map((tag) => [tag.id, tag]));
+  for (const tag of incoming) {
+    map.set(tag.id, tag);
+  }
+  return [...map.values()].sort((left, right) => left.name.localeCompare(right.name));
 }

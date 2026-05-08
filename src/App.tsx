@@ -22,11 +22,14 @@ import {
   TimerReset,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@heroui/react";
-import { createTask, setActiveTag, setActiveView, toggleTask, useTaskStore, useVisibleTasks } from "./stores/taskStore";
-import { formatTaskTime } from "./lib/date";
+import { emit, listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { createTask, createTasksFromAgent, hydrateTaskStore, setActiveTag, setActiveView, toggleTask, useTaskStore, useVisibleTasks } from "./stores/taskStore";
+import { formatTaskTime, isSameDay, isWithinNext7Days } from "./lib/date";
+import { planTasksFromTranscript, transcribeAudio } from "./services/voiceAgent";
 import type { SmartView, Task, TaskPriority } from "./types/task";
 
 const viewLabels: Record<SmartView, string> = {
@@ -56,8 +59,34 @@ function App() {
   const store = useTaskStore();
   const { openTasks, doneTasks } = useVisibleTasks();
   const [isRecording, setIsRecording] = useState(false);
+  const [voiceState, setVoiceState] = useState<"idle" | "recording" | "transcribing" | "planning" | "saved" | "error">("idle");
+  const [voiceMessage, setVoiceMessage] = useState("Ctrl Shift Space");
   const [draft, setDraft] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    void hydrateTaskStore();
+    const window = getCurrentWindow();
+    const closePromise = window.onCloseRequested(async (event) => {
+      event.preventDefault();
+      await window.hide();
+    });
+    const shortcutPromise = listen("voice-shortcut", () => {
+      void startRecording();
+    });
+    const tasksUpdatedPromise = listen("tasks-updated", () => {
+      void hydrateTaskStore();
+    });
+
+    return () => {
+      void closePromise.then((unlisten) => unlisten());
+      void shortcutPromise.then((unlisten) => unlisten());
+      void tasksUpdatedPromise.then((unlisten) => unlisten());
+    };
+  }, []);
 
   const currentTitle = useMemo(() => {
     if (store.activeTagId) {
@@ -72,8 +101,78 @@ function App() {
   const handleSubmit = () => {
     const title = draft.trim();
     if (!title) return;
-    createTask(title);
+    void createTask(title);
     setDraft("");
+  };
+
+  const startRecording = async () => {
+    if (recorderRef.current?.state === "recording") return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      chunksRef.current = [];
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      recorderRef.current = recorder;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const audio = new Blob(chunksRef.current, { type: recorder.mimeType });
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        void processVoice(audio);
+      };
+      recorder.start();
+      setIsRecording(true);
+      setVoiceState("recording");
+      setVoiceMessage("Listening...");
+    } catch (error) {
+      setVoiceState("error");
+      setVoiceMessage(error instanceof Error ? error.message : "Microphone unavailable");
+      setIsRecording(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (recorderRef.current?.state === "recording") {
+      recorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+      return;
+    }
+    void startRecording();
+  };
+
+  const processVoice = async (audio: Blob) => {
+    try {
+      setVoiceState("transcribing");
+      setVoiceMessage("Transcribing...");
+      const transcript = await transcribeAudio(audio);
+      if (!transcript) throw new Error("No speech detected");
+      setVoiceState("planning");
+      setVoiceMessage("Turning speech into tasks...");
+      const recentTasks = store.recentTaskIds
+        .map((id) => store.tasks.find((task) => task.id === id)?.title)
+        .filter((title): title is string => Boolean(title));
+      const plannedTasks = await planTasksFromTranscript(transcript, recentTasks);
+      const created = await createTasksFromAgent(plannedTasks, transcript);
+      await emit("tasks-updated", { count: created.length });
+      setVoiceState("saved");
+      setVoiceMessage(`Created ${created.length} task${created.length > 1 ? "s" : ""}`);
+      window.setTimeout(() => {
+        setVoiceState("idle");
+        setVoiceMessage("Ctrl Shift Space");
+      }, 1800);
+    } catch (error) {
+      setVoiceState("error");
+      setVoiceMessage(error instanceof Error ? error.message : String(error));
+    }
   };
 
   return (
@@ -111,7 +210,7 @@ function App() {
                 isIconOnly
                 aria-label="Voice capture"
                 className={isRecording ? "icon-button recording" : "icon-button"}
-                onPress={() => setIsRecording((value) => !value)}
+                onPress={toggleRecording}
                 variant="ghost"
               >
                 <Mic size={20} />
@@ -133,11 +232,13 @@ function App() {
               placeholder={isRecording ? "Listening... say your tasks" : "Add task"}
               value={draft}
             />
-            <button className="voice-pill" onClick={() => setIsRecording((value) => !value)} type="button">
+            <button className="voice-pill" onClick={toggleRecording} type="button">
               <Mic size={15} />
               {isRecording ? "Stop" : "Voice"}
             </button>
           </div>
+
+          {store.error ? <div className="store-error">{store.error}</div> : null}
 
           <div className="task-list" role="list">
             <AnimatePresence initial={false}>
@@ -162,7 +263,28 @@ function App() {
           ) : null}
         </div>
       </section>
+      <VoiceWidget message={voiceMessage} state={voiceState} onToggle={toggleRecording} />
     </main>
+  );
+}
+
+function VoiceWidget({
+  message,
+  onToggle,
+  state,
+}: {
+  message: string;
+  onToggle: () => void;
+  state: "idle" | "recording" | "transcribing" | "planning" | "saved" | "error";
+}) {
+  return (
+    <button className={`voice-widget ${state}`} onClick={onToggle} type="button" title="Ctrl + Shift + Space">
+      <span className="voice-widget-dot">
+        <Mic size={18} />
+      </span>
+      <span className="voice-widget-text">{message}</span>
+      {state === "recording" ? <i className="voice-meter" /> : null}
+    </button>
   );
 }
 
@@ -201,9 +323,9 @@ function Sidebar() {
 
   const counts = useMemo(() => {
     return {
-      today: store.tasks.filter((task) => task.status === "open").length,
-      next7: store.tasks.filter((task) => task.status === "open").length,
-      inbox: store.tasks.filter((task) => task.status === "open").length,
+      today: store.tasks.filter((task) => task.status === "open" && isSameDay(task.dueAt, new Date())).length,
+      next7: store.tasks.filter((task) => task.status === "open" && isWithinNext7Days(task.dueAt)).length,
+      inbox: store.tasks.filter((task) => task.status === "open" && !task.dueAt).length,
     };
   }, [store.tasks]);
 
@@ -287,7 +409,7 @@ function TaskRow({ isCompletedPreview, task }: { isCompletedPreview?: boolean; t
       <button
         aria-label={task.status === "done" ? "Mark task open" : "Complete task"}
         className={`check-box ${priorityClass[task.priority]} ${task.status === "done" ? "done" : ""}`}
-        onClick={() => toggleTask(task.id)}
+        onClick={() => void toggleTask(task.id)}
         type="button"
       >
         {task.status === "done" ? "✓" : null}

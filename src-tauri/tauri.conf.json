@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "todoless",
         "width": 1020,
         "height": 760,
@@ -25,6 +26,22 @@
         "alwaysOnTop": true,
         "transparent": false,
         "shadow": true
+      },
+      {
+        "label": "widget",
+        "title": "todoless voice",
+        "url": "index.html?mode=widget",
+        "width": 92,
+        "height": 92,
+        "resizable": false,
+        "visible": false,
+        "center": false,
+        "fullscreen": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "shadow": false,
+        "skipTaskbar": true
       }
     ],
     "security": {
