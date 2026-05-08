@@ -1,5 +1,5 @@
 import type React from "react";
-import { Crown, Minus, Square, X } from "lucide-react";
+import { Minus, Settings, Square, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export function WindowChrome() {
@@ -16,9 +16,9 @@ export function WindowChrome() {
         <span className="brand-mark">tl</span>
         <span className="brand-name">todoless</span>
       </div>
-      <div className="chrome-status" title="Pinned mode">
-        <Crown className="chrome-crown" size={18} />
-      </div>
+      <button className="chrome-settings" title="Settings" type="button" onPointerDown={(event) => event.stopPropagation()}>
+        <Settings size={17} />
+      </button>
       <button className="chrome-button" aria-label="Minimize" onClick={() => void window.minimize()} onPointerDown={(event) => event.stopPropagation()} type="button">
         <Minus size={18} />
       </button>
