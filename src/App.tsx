@@ -1,13 +1,13 @@
-import { Archive, Calendar1, CalendarDays, ChevronDown, ChevronRight, Inbox, Menu, Mic, MoreHorizontal, Plus, Tag, TimerReset } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { Archive, Calendar1, CalendarDays, Inbox, Menu, Mic, MoreHorizontal, Tag, TimerReset } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { Button } from "@heroui/react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WindowChrome } from "./components/chrome/WindowChrome";
 import { Rail } from "./components/shell/Rail";
 import { Sidebar } from "./components/shell/Sidebar";
-import { TaskItem } from "./components/task/TaskItem";
+import { TaskList } from "./components/task/TaskList";
+import { VoiceCaptureBar } from "./components/voice/VoiceCaptureBar";
 import { VoiceWidget } from "./components/voice/VoiceWidget";
 import { useVoiceCapture } from "./hooks/useVoiceCapture";
 import { createTask, hydrateTaskStore, useTaskStore, useVisibleTasks } from "./stores/taskStore";
@@ -32,8 +32,6 @@ const viewIcons: Record<SmartView, typeof Inbox> = {
 function App() {
   const store = useTaskStore();
   const { openTasks, doneTasks } = useVisibleTasks();
-  const [draft, setDraft] = useState("");
-  const [showCompleted, setShowCompleted] = useState(true);
   const { isRecording, startRecording, toggleRecording, voiceMessage, voiceState } = useVoiceCapture();
 
   useEffect(() => {
@@ -65,13 +63,6 @@ function App() {
   }, [store.activeTagId, store.activeView, store.tags]);
 
   const ActiveIcon = store.activeTagId ? Tag : viewIcons[store.activeView];
-
-  const handleSubmit = () => {
-    const title = draft.trim();
-    if (!title) return;
-    void createTask(title);
-    setDraft("");
-  };
 
   return (
     <main className="app-shell">
@@ -105,46 +96,11 @@ function App() {
             </div>
           </header>
 
-          <div className={isRecording ? "voice-input recording" : "voice-input"}>
-            <Plus size={24} />
-            <input
-              aria-label="Add task"
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") handleSubmit();
-              }}
-              placeholder={isRecording ? "Listening... say your tasks" : "Add task"}
-              value={draft}
-            />
-            <button className="voice-pill" onClick={toggleRecording} type="button">
-              <Mic size={15} />
-              {isRecording ? "Stop" : "Voice"}
-            </button>
-          </div>
+          <VoiceCaptureBar isRecording={isRecording} onSubmitText={(title) => void createTask(title)} onToggleRecording={toggleRecording} />
 
           {store.error ? <div className="store-error">{store.error}</div> : null}
 
-          <div className="task-list" role="list">
-            <AnimatePresence initial={false}>
-              {openTasks.map((task) => (
-                <TaskItem key={task.id} task={task} />
-              ))}
-            </AnimatePresence>
-          </div>
-
-          <button className="completed-toggle" onClick={() => setShowCompleted((value) => !value)} type="button">
-            {showCompleted ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-            <span>Completed</span>
-            <strong>{doneTasks.length}</strong>
-          </button>
-
-          {showCompleted ? (
-            <div className="completed-list">
-              {doneTasks.slice(0, 5).map((task) => (
-                <TaskItem isCompletedPreview key={task.id} task={task} />
-              ))}
-            </div>
-          ) : null}
+          <TaskList doneTasks={doneTasks} openTasks={openTasks} />
         </div>
       </section>
       <VoiceWidget message={voiceMessage} state={voiceState} onToggle={toggleRecording} />

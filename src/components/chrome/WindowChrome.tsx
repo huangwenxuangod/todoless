@@ -1,16 +1,21 @@
+import type React from "react";
 import { Crown, Minus, Square, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export function WindowChrome() {
   const window = getCurrentWindow();
+  const startDrag = (event: React.PointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return;
+    void window.startDragging();
+  };
 
   return (
-    <header className="window-chrome" data-tauri-drag-region>
-      <div className="chrome-brand" data-tauri-drag-region>
+    <header className="window-chrome" onPointerDown={startDrag}>
+      <div className="chrome-brand">
         <span className="brand-mark">tl</span>
         <span className="brand-name">todoless</span>
       </div>
-      <div className="chrome-status" title="Pinned mode" data-tauri-drag-region>
+      <div className="chrome-status" title="Pinned mode">
         <Crown className="chrome-crown" size={18} />
       </div>
       <button className="chrome-button" aria-label="Minimize" onClick={() => void window.minimize()} type="button">

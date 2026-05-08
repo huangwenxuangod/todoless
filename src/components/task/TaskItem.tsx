@@ -14,8 +14,6 @@ const priorityClass: Record<TaskPriority, string> = {
 
 export function TaskItem({ isCompletedPreview, task }: { isCompletedPreview?: boolean; task: Task }) {
   const [expanded, setExpanded] = useState(false);
-  const visibleTags = task.tags.slice(0, 1);
-  const hiddenTagCount = Math.max(task.tags.length - visibleTags.length, 0);
 
   return (
     <motion.article
@@ -26,30 +24,50 @@ export function TaskItem({ isCompletedPreview, task }: { isCompletedPreview?: bo
       layout
       role="listitem"
     >
-      <button
-        aria-label={task.status === "done" ? "Mark task open" : "Complete task"}
-        className={`check-box ${priorityClass[task.priority]} ${task.status === "done" ? "done" : ""}`}
-        onClick={() => void toggleTask(task.id)}
-        type="button"
-      >
-        {task.status === "done" ? "✓" : null}
-      </button>
-
-      <button className="task-main" onClick={() => setExpanded((value) => !value)} type="button">
-        <span className="task-title">{task.title}</span>
-        {expanded && task.content ? <span className="task-content">{task.content}</span> : null}
-      </button>
-
-      <div className="task-meta">
-        {visibleTags.map((tag) => (
-          <span className="tag-chip" key={tag.id} style={{ "--tag-color": tag.color } as React.CSSProperties}>
-            {tag.name}
-          </span>
-        ))}
-        {hiddenTagCount > 0 ? <span className="tag-more">+{hiddenTagCount}</span> : null}
-        {task.reminderAt ? <Clock3 className="meta-icon" size={17} /> : null}
-        {task.dueAt ? <span className="task-time">{formatTaskTime(task.reminderAt ?? task.dueAt)}</span> : null}
-      </div>
+      <TaskCheckbox task={task} />
+      <TaskBody expanded={expanded} onToggle={() => setExpanded((value) => !value)} task={task} />
+      <TaskMeta task={task} />
     </motion.article>
+  );
+}
+
+function TaskCheckbox({ task }: { task: Task }) {
+  return (
+    <button
+      aria-label={task.status === "done" ? "Mark task open" : "Complete task"}
+      className={`check-box ${priorityClass[task.priority]} ${task.status === "done" ? "done" : ""}`}
+      onClick={() => void toggleTask(task.id)}
+      type="button"
+    >
+      {task.status === "done" ? "✓" : null}
+    </button>
+  );
+}
+
+function TaskBody({ expanded, onToggle, task }: { expanded: boolean; onToggle: () => void; task: Task }) {
+  return (
+    <button className="task-main" onClick={onToggle} type="button">
+      <span className="task-title">{task.title}</span>
+      {expanded && task.content ? <span className="task-content">{task.content}</span> : null}
+      {expanded ? <span className="task-ai-hint">AI can refine this task from your next voice correction.</span> : null}
+    </button>
+  );
+}
+
+function TaskMeta({ task }: { task: Task }) {
+  const visibleTags = task.tags.slice(0, 1);
+  const hiddenTagCount = Math.max(task.tags.length - visibleTags.length, 0);
+
+  return (
+    <div className="task-meta">
+      {visibleTags.map((tag) => (
+        <span className="tag-chip" key={tag.id} style={{ "--tag-color": tag.color } as React.CSSProperties}>
+          {tag.name}
+        </span>
+      ))}
+      {hiddenTagCount > 0 ? <span className="tag-more">+{hiddenTagCount}</span> : null}
+      {task.reminderAt ? <Clock3 className="meta-icon" size={17} /> : null}
+      {task.dueAt ? <span className="task-time">{formatTaskTime(task.reminderAt ?? task.dueAt)}</span> : null}
+    </div>
   );
 }
