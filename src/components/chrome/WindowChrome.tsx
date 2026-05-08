@@ -6,6 +6,7 @@ export function WindowChrome() {
   const window = getCurrentWindow();
   const startDrag = (event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
+    if (event.target instanceof Element && event.target.closest("button")) return;
     void window.startDragging();
   };
 
@@ -18,13 +19,13 @@ export function WindowChrome() {
       <div className="chrome-status" title="Pinned mode">
         <Crown className="chrome-crown" size={18} />
       </div>
-      <button className="chrome-button" aria-label="Minimize" onClick={() => void window.minimize()} type="button">
+      <button className="chrome-button" aria-label="Minimize" onClick={() => void window.minimize()} onPointerDown={(event) => event.stopPropagation()} type="button">
         <Minus size={18} />
       </button>
-      <button className="chrome-button" aria-label="Maximize" onClick={() => void window.toggleMaximize()} type="button">
+      <button className="chrome-button" aria-label="Maximize" onClick={() => void window.toggleMaximize()} onPointerDown={(event) => event.stopPropagation()} type="button">
         <Square size={15} />
       </button>
-      <button className="chrome-button close" aria-label="Close" onClick={() => void window.hide()} type="button">
+      <button className="chrome-button close" aria-label="Close" onClick={() => void window.hide()} onPointerDown={(event) => event.stopPropagation()} type="button">
         <X size={18} />
       </button>
     </header>
