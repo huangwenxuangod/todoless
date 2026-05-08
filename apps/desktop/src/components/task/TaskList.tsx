@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { TaskItem } from "./TaskItem";
-import type { Task } from "../../types/task";
+import type { Task } from "@todoless/shared/types/task";
 
 type CompletedGroup = {
   key: string;

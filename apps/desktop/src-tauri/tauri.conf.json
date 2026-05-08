@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "app.todoless.desktop",
   "build": {
-    "beforeDevCommand": "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 1420",
+    "beforeDevCommand": "bunx vite --host 127.0.0.1 --port 1420",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "node node_modules/typescript/bin/tsc --noEmit && node node_modules/vite/bin/vite.js build",
+    "beforeBuildCommand": "bunx tsc --noEmit && bunx vite build",
     "frontendDist": "../dist"
   },
   "app": {

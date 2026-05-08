@@ -14,8 +14,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "@todoless/shared": ["../../packages/shared/src/index.ts"],
+      "@todoless/shared/*": ["../../packages/shared/src/*"]
+    }
   },
   "include": ["src"],
-  "references": []
 }

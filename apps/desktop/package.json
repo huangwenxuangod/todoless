@@ -1,0 +1,35 @@
+{
+  "name": "@todoless/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bunx vite --host 127.0.0.1 --port 1420",
+    "build": "bunx tsc --noEmit && bunx vite build",
+    "preview": "bunx vite preview",
+    "tauri": "bunx tauri",
+    "tauri:dev": "bunx tauri dev",
+    "tauri:build": "bunx tauri build",
+    "check": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "@todoless/shared": "workspace:*",
+    "@tauri-apps/api": "latest",
+    "@tauri-apps/plugin-global-shortcut": "latest",
+    "@tauri-apps/plugin-sql": "latest",
+    "framer-motion": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "latest",
+    "@tailwindcss/vite": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest",
+    "vite": "latest"
+  }
+}

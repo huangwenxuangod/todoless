@@ -1,5 +1,5 @@
-import type { Task, TaskTag } from "../types/task";
-import { createDefaultReminderAt } from "../lib/date";
+import type { Task, TaskTag } from "@todoless/shared/types/task";
+import { createDefaultReminderAt } from "@todoless/shared/lib/date";
 
 export const seedTags: TaskTag[] = [
   { id: "tag-product", name: "产品", color: "#ff6b6b" },

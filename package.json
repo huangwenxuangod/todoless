@@ -1,36 +1,20 @@
 {
-  "name": "todoless",
+  "name": "@todoless/root",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 1420",
-    "build": "node node_modules/typescript/bin/tsc --noEmit && node node_modules/vite/bin/vite.js build",
-    "preview": "vite preview",
-    "tauri": "tauri",
-    "tauri:dev": "node node_modules/@tauri-apps/cli/tauri.js dev",
-    "tauri:build": "node node_modules/@tauri-apps/cli/tauri.js build",
-    "check": "node node_modules/typescript/bin/tsc --noEmit"
-  },
-  "dependencies": {
-    "@heroui/react": "latest",
-    "@tauri-apps/api": "latest",
-    "@tauri-apps/plugin-global-shortcut": "latest",
-    "@tauri-apps/plugin-sql": "latest",
-    "framer-motion": "latest",
-    "lucide-react": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "zod": "latest"
+    "dev:desktop": "bun run --cwd apps/desktop tauri:dev",
+    "build:desktop": "bun run --cwd apps/desktop tauri:build",
+    "check:desktop": "bun run --cwd apps/desktop check",
+    "dev:web": "bun run --cwd apps/web dev",
+    "build:web": "bun run --cwd apps/web build",
+    "dev:app": "bun run --cwd apps/app start",
+    "db:start": "supabase start",
+    "db:types": "supabase gen types typescript --local > packages/shared/src/sync/schema.ts"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "latest",
-    "@tailwindcss/vite": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "@vitejs/plugin-react": "latest",
-    "tailwindcss": "latest",
-    "typescript": "latest",
-    "vite": "latest"
+    "typescript": "latest"
   }
 }

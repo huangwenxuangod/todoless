@@ -1,9 +1,9 @@
 import { useMemo, useSyncExternalStore } from "react";
-import { createDefaultTodayDueAt, taskBelongsToView, taskMatchesView } from "../lib/date";
-import { createId } from "../lib/ids";
+import { createDefaultTodayDueAt, taskBelongsToView, taskMatchesView } from "@todoless/shared/lib/date";
+import { createId } from "@todoless/shared/lib/ids";
 import { initializeDb, insertTask, loadTasksAndTags, recordEvent, softDeleteTask, updateTask, upsertTag } from "../services/db";
 import { showToast } from "./toastStore";
-import type { SmartView, Task, TaskPriority, TaskStatus, TaskTag } from "../types/task";
+import type { SmartView, Task, TaskPriority, TaskStatus, TaskTag } from "@todoless/shared/types/task";
 
 type TaskStoreState = {
   tasks: Task[];

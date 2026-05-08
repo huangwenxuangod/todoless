@@ -1,7 +1,7 @@
 import { CalendarDays, Inbox, X } from "lucide-react";
 import { useRef } from "react";
 import { useDismissableLayer } from "../../hooks/useDismissableLayer";
-import type { Task } from "../../types/task";
+import type { Task } from "@todoless/shared/types/task";
 import { TaskCheckbox } from "./TaskParts";
 
 function formatDetailDate(dateStr: string | null): string {

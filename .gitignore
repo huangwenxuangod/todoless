@@ -1,12 +1,46 @@
+# Dependencies
 node_modules/
-dist/
-src-tauri/target/
-src-tauri/gen/
 
+# Build outputs
+dist/
+.next/
+out/
+
+# Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# Environment
 .env
 .env.*
 !.env.example
 
+# Expo / React Native
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+apps/app/ios/
+apps/app/android/
+
+# Supabase
+.supabase/
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
 .DS_Store
 Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

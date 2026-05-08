@@ -1,8 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
-import { AgentCreateTasksSchema } from "../types/agent";
-import { createDefaultTodayDueAt } from "../lib/date";
+import { AgentCreateTasksSchema } from "@todoless/shared/types/agent";
+import { createDefaultTodayDueAt } from "@todoless/shared/lib/date";
 import { getAppSettings } from "../stores/settingsStore";
-import type { Task, TaskTag } from "../types/task";
+import type { Task, TaskTag } from "@todoless/shared/types/task";
 
 type TranscribeResponse = {
   text: string;

@@ -1,6 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import { seedTags, seedTasks } from "../data/seed";
-import type { Task, TaskPriority, TaskStatus, TaskTag } from "../types/task";
+import type { Task, TaskPriority, TaskStatus, TaskTag } from "@todoless/shared/types/task";
 
 type TaskRow = {
   id: string;

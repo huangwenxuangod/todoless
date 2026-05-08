@@ -1,7 +1,7 @@
 import { Archive, Calendar1, CalendarDays, ChevronDown, Inbox, Tag, TimerReset } from "lucide-react";
 import { useMemo, useState } from "react";
 import { setActiveView, useTaskStore } from "../../stores/taskStore";
-import type { SmartView } from "../../types/task";
+import type { SmartView } from "@todoless/shared/types/task";
 import { DropdownMenu } from "../ui/DropdownMenu";
 
 const viewLabels: Record<SmartView, string> = {

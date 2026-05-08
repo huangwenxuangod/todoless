@@ -1,5 +1,5 @@
 export const createId = () => {
-  if ("crypto" in window && "randomUUID" in window.crypto) {
+  if (typeof window !== "undefined" && "crypto" in window && "randomUUID" in window.crypto) {
     return window.crypto.randomUUID();
   }
 

@@ -11,7 +11,7 @@ import { showToast } from "./stores/toastStore";
 import { initAppSettings } from "./stores/settingsStore";
 import { createTasksFromAgent, hydrateTaskStore, setActiveView, useTaskStore, useVisibleTasks } from "./stores/taskStore";
 import { planTasksFromTranscript, transcribeAudio } from "./services/voiceAgent";
-import type { SmartView, Task } from "./types/task";
+import type { SmartView, Task } from "@todoless/shared/types/task";
 
 const widgetViews: Array<{ id: SmartView; label: string; icon: typeof Inbox }> = [
   { id: "today", label: "Today", icon: Calendar1 },

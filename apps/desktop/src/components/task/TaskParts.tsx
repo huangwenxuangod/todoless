@@ -1,7 +1,7 @@
 import { Clock3 } from "lucide-react";
-import { formatTaskTime } from "../../lib/date";
+import { formatTaskTime } from "@todoless/shared/lib/date";
 import { toggleTask } from "../../stores/taskStore";
-import type { Task, TaskPriority } from "../../types/task";
+import type { Task, TaskPriority } from "@todoless/shared/types/task";
 
 export const priorityClass: Record<TaskPriority, string> = {
   0: "priority-none",

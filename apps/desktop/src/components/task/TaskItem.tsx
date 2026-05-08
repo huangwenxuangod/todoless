@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import type { Task } from "../../types/task";
+import type { Task } from "@todoless/shared/types/task";
 import { TaskCheckbox, TaskMetaRow } from "./TaskParts";
 
 export function TaskItem({ isCompletedPreview, onSelect, task }: { isCompletedPreview?: boolean; onSelect?: (id: string) => void; task: Task }) {
