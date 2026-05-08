@@ -1,19 +1,36 @@
-import { Mic, Minus, X } from "lucide-react";
+import { Calendar1, CalendarDays, ChevronDown, Inbox, Mic, Minus, TimerReset, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { createTasksFromAgent, hydrateTaskStore, useTaskStore } from "./stores/taskStore";
+import { ToastContainer } from "./components/toast/ToastContainer";
+import { formatTaskTime } from "./lib/date";
 import { showToast } from "./stores/toastStore";
+import { createTasksFromAgent, hydrateTaskStore, setActiveView, toggleTask, useTaskStore, useVisibleTasks } from "./stores/taskStore";
 import { planTasksFromTranscript, transcribeAudio } from "./services/voiceAgent";
+import type { SmartView, Task, TaskPriority } from "./types/task";
+
+const widgetViews: Array<{ id: SmartView; label: string; icon: typeof Inbox }> = [
+  { id: "today", label: "Today", icon: Calendar1 },
+  { id: "tomorrow", label: "Tomorrow", icon: TimerReset },
+  { id: "next7", label: "Next 7 Days", icon: CalendarDays },
+  { id: "inbox", label: "Inbox", icon: Inbox },
+];
+
+const priorityClass: Record<TaskPriority, string> = {
+  0: "priority-none",
+  1: "priority-low",
+  2: "priority-medium",
+  3: "priority-high",
+};
 
 function WidgetApp() {
   const store = useTaskStore();
+  const { openTasks } = useVisibleTasks();
   const [state, setState] = useState<"idle" | "recording" | "thinking" | "saved" | "error">("idle");
   const [message, setMessage] = useState("Add task");
+  const [menuOpen, setMenuOpen] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     void hydrateTaskStore();
@@ -24,16 +41,6 @@ function WidgetApp() {
       void tasksUpdatedPromise.then((unlisten) => unlisten());
     };
   }, []);
-
-  const handleScroll = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.classList.add("scrolling");
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      el.classList.remove("scrolling");
-    }, 800);
-  };
 
   const start = async () => {
     if (recorderRef.current?.state === "recording") return;
@@ -108,12 +115,47 @@ function WidgetApp() {
     void window.startDragging();
   };
 
-  const visibleTasks = store.tasks.filter((t) => t.status === "open").slice(0, 20);
+  const activeView = widgetViews.find((view) => view.id === store.activeView) ?? widgetViews[0];
+  const ActiveIcon = activeView.icon;
+  const visibleTasks = openTasks.slice(0, 30);
 
   return (
     <div className="widget-app">
       <header className="widget-header" onPointerDown={startDrag}>
-        <span className="widget-brand">tl</span>
+        <div className="widget-title-wrap">
+          <button
+            className="widget-title"
+            onClick={() => setMenuOpen((value) => !value)}
+            onPointerDown={(e) => e.stopPropagation()}
+            type="button"
+          >
+            <ActiveIcon size={15} />
+            <span>{activeView.label}</span>
+            <ChevronDown size={13} />
+          </button>
+          {menuOpen ? (
+            <div className="widget-view-menu">
+              {widgetViews.map((view) => {
+                const Icon = view.icon;
+                return (
+                  <button
+                    className={store.activeView === view.id ? "widget-view-item active" : "widget-view-item"}
+                    key={view.id}
+                    onClick={() => {
+                      setActiveView(view.id);
+                      setMenuOpen(false);
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    type="button"
+                  >
+                    <Icon size={13} />
+                    <span>{view.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
         <div className="widget-controls">
           <button
             aria-label="Minimize"
@@ -136,22 +178,17 @@ function WidgetApp() {
         </div>
       </header>
 
-      <div ref={scrollRef} className="widget-scroll" onScroll={handleScroll}>
+      <div className="widget-scroll">
         {visibleTasks.length === 0 ? (
           <div className="widget-empty">No tasks yet</div>
         ) : (
-          visibleTasks.map((task) => (
-            <div className="widget-task" key={task.id}>
-              <span className={`widget-check ${task.status === "done" ? "done" : ""}`}></span>
-              <span className="widget-task-title">{task.title}</span>
-            </div>
-          ))
+          visibleTasks.map((task) => <WidgetTaskItem key={task.id} task={task} />)
         )}
       </div>
 
-      <div className="widget-voice">
+      <div className="widget-add-task">
         <button
-          className={`widget-voice-btn ${state}`}
+          className={`widget-add-btn ${state}`}
           onClick={() => {
             if (state === "recording") stop();
             else void start();
@@ -163,7 +200,34 @@ function WidgetApp() {
           <span>{message}</span>
         </button>
       </div>
+      <ToastContainer />
     </div>
+  );
+}
+
+function WidgetTaskItem({ task }: { task: Task }) {
+  const visibleTags = task.tags.slice(0, 1);
+
+  return (
+    <article className="widget-task">
+      <button
+        aria-label="Complete task"
+        className={`widget-check ${priorityClass[task.priority]}`}
+        onClick={() => void toggleTask(task.id)}
+        type="button"
+      />
+      <div className="widget-task-body">
+        <div className="widget-task-title">{task.title}</div>
+        <div className="widget-task-meta">
+          {visibleTags.map((tag) => (
+            <span className="widget-tag" key={tag.id} style={{ "--tag-color": tag.color } as React.CSSProperties}>
+              {tag.name}
+            </span>
+          ))}
+          {task.dueAt ? <span className="widget-time">{formatTaskTime(task.reminderAt ?? task.dueAt)}</span> : null}
+        </div>
+      </div>
+    </article>
   );
 }
 
