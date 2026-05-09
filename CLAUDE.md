@@ -1,30 +1,42 @@
 # todoless
 
-A voice-first, AI-powered desktop task manager built with Tauri v2 and React.
+A voice-first task product built as a Bun workspace.
 
 ## Overview
 
-todoless is a minimal desktop application that turns spoken words into structured tasks. It features a warm, low-contrast "Zen Voice" design language, two window modes (main panel + floating widget), and a fully local SQLite database. The core interaction is simple: press a global shortcut, speak, and watch tasks appear.
+todoless turns spoken words into structured tasks. The desktop app remains the MVP source of truth, while mobile and web are now present as separate workspace apps. The product should stay narrowly focused on voice-to-task: not notes, not journaling, not team project management.
+
+## Workspace Layout
+
+| Path | Role |
+|------|------|
+| `apps/desktop` | Tauri + React desktop app, main MVP surface |
+| `apps/app` | Expo mobile app, early implementation |
+| `apps/web` | Next.js landing/waitlist/download/pricing app |
+| `packages/shared` | Shared task types, date/id helpers, tokens |
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Desktop Shell | Tauri v2 (Rust) |
-| Frontend | React 19 + TypeScript |
-| Build Tool | Vite |
+| Desktop Shell | Tauri v2 (Rust), under `apps/desktop` |
+| Desktop Frontend | React 19 + TypeScript + Vite |
+| Mobile | Expo Router + React Native + Expo SQLite |
+| Web | Next.js |
 | Styling | Tailwind CSS v4 (CSS-first config, no `tailwind.config.js`) |
 | Animations | Framer Motion |
 | Icons | Lucide React |
 | Validation | Zod |
-| Database | SQLite via `@tauri-apps/plugin-sql` |
-| State | Custom stores with `useSyncExternalStore` |
+| Desktop Database | SQLite via `@tauri-apps/plugin-sql` |
+| Mobile Database | Expo SQLite |
+| Desktop State | Custom stores with `useSyncExternalStore` |
+| Mobile State | Zustand |
 
 ## Architecture
 
 ### Window Model
 
-The app runs two Tauri webview windows from a single React entry point (`main.tsx` branches on `?mode=widget`):
+The desktop app runs two Tauri webview windows from `apps/desktop/src/main.tsx` (`?mode=widget` selects the widget):
 
 - **Main Window** (`label: "main"`, 620 x 760): Primary task panel with full chrome, view switcher, task list, settings, and voice widget.
 - **Widget Window** (`label: "widget"`, 370 x 300): Compact always-on-top floating panel. Transparent background, no taskbar entry. Mirrors main app functionality in minimal form.
@@ -33,14 +45,14 @@ Both windows respond to the same global voice shortcut events (`voice-shortcut` 
 
 ### State Management
 
-All global state lives outside React in module-level atoms, exposed via `useSyncExternalStore`. No context providers, no Redux.
+Desktop global state lives outside React in module-level atoms, exposed via `useSyncExternalStore`. Mobile uses Zustand.
 
 | Store | File | Responsibility |
 |-------|------|---------------|
-| taskStore | `src/stores/taskStore.ts` | Tasks, tags, active view/filter, recent context |
-| settingsStore | `src/stores/settingsStore.ts` | Always-on-top, shortcut, close behavior, ASR/text model |
-| themeStore | `src/stores/themeStore.ts` | Light / dark / system mode, `html.light` class toggle |
-| toastStore | `src/stores/toastStore.ts` | Ephemeral toast queue, auto-dismiss after 3s |
+| taskStore | `apps/desktop/src/stores/taskStore.ts` | Tasks, tags, active view/filter, recent context |
+| settingsStore | `apps/desktop/src/stores/settingsStore.ts` | Always-on-top, shortcut, close behavior, ASR/text model |
+| themeStore | `apps/desktop/src/stores/themeStore.ts` | Light / dark / system mode, `html.light` class toggle |
+| toastStore | `apps/desktop/src/stores/toastStore.ts` | Ephemeral toast queue, auto-dismiss after 3s |
 
 Stores emit changes by iterating a `Set<() => void>` of listeners. Server-side rendering is not a concern (desktop-only app), so `getSnapshot` and `getServerSnapshot` are identical.
 
@@ -61,7 +73,7 @@ The LLM is given a strict system prompt that returns only JSON. It infers due da
 
 ### Local ASR (Optional)
 
-Users can download a local SenseVoice Small ONNX model (~229 MB) for offline transcription. Model files are fetched from ModelScope or Hugging Face and stored in `models/sensevoice-small/`. Progress is streamed via Tauri events.
+Users can download a local SenseVoice Small ONNX model (~229 MB). Model management exists; full local ASR execution still requires the sidecar integration. Model files are fetched from ModelScope or Hugging Face and stored in `apps/desktop/models/sensevoice-small/` during desktop development. Progress is streamed via Tauri events.
 
 ### Database Schema
 
@@ -83,7 +95,7 @@ Dark-first, warm, minimal. The palette intentionally avoids cold grays and satur
 
 ### Tokens
 
-CSS custom properties in `src/styles.css`. Dark values are `:root` defaults; `html.light` overrides them.
+CSS custom properties in `apps/desktop/src/styles.css`. Dark values are `:root` defaults; `html.light` overrides them.
 
 | Token | Dark | Light | Usage |
 |-------|------|-------|-------|
@@ -108,30 +120,33 @@ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable",
 
 ### Component Conventions
 
-- No CSS Modules; all styles live in `src/styles.css`.
+- No CSS Modules in desktop; all desktop styles live in `apps/desktop/src/styles.css`.
 - Tailwind is used sparingly for utility classes; most layout is hand-written CSS leveraging custom properties.
 - `framer-motion` `layout` prop is used on task items for smooth list reordering.
 - Frameless windows use `-webkit-app-region: drag` / `no-drag` for chrome drag areas.
+- Reuse UI primitives before adding one-off components: `DropdownMenu`, `SelectMenu`, `TaskParts`, `useScrollVisibility`, `useDismissableLayer`.
 
 ## Key Files
 
 | File | Responsibility |
 |------|---------------|
-| `src/main.tsx` | Entry point. Renders `App` or `WidgetApp` based on URL param. |
-| `src/App.tsx` | Main window layout. Orchestrates chrome, task list, voice widget, settings, detail card, toasts. |
-| `src/WidgetApp.tsx` | Widget window. Compact view switcher, scrollable task list, floating voice button, context menu. |
-| `src/styles.css` | Global design system. All CSS variables, component styles, scrollbar behavior, responsive rules. |
-| `src/stores/taskStore.ts` | Task state, filtering logic, CRUD actions. |
-| `src/stores/settingsStore.ts` | Settings persistence, Tauri window integration. |
-| `src/hooks/useVoiceCapture.ts` | Full voice lifecycle: recording -> transcribing -> planning -> saved/error. |
-| `src/services/voiceAgent.ts` | Frontend abstraction over `transcribe_audio` and `plan_tasks` Tauri commands. |
-| `src/services/db.ts` | SQLite schema, migrations, CRUD, seeding. |
-| `src-tauri/src/lib.rs` | Rust backend: OpenRouter API calls, SenseVoice download, global shortcuts, tray menu, window commands. |
-| `src-tauri/tauri.conf.json` | Window definitions, build hooks, security policy. |
+| `apps/desktop/src/main.tsx` | Desktop entry point. Renders `App` or `WidgetApp` based on URL param. |
+| `apps/desktop/src/App.tsx` | Main window layout. Orchestrates chrome, task list, voice widget, settings, detail card, toasts. |
+| `apps/desktop/src/WidgetApp.tsx` | Widget window. Compact view switcher, scrollable task list, floating voice button, context menu. |
+| `apps/desktop/src/styles.css` | Desktop design system. CSS variables, component styles, scrollbar behavior, responsive rules. |
+| `apps/desktop/src/stores/taskStore.ts` | Desktop task state, filtering logic, CRUD actions. |
+| `apps/desktop/src/stores/settingsStore.ts` | Settings persistence, Tauri window integration. |
+| `apps/desktop/src/hooks/useVoiceCapture.ts` | Full voice lifecycle: recording -> transcribing -> planning -> saved/error. |
+| `apps/desktop/src/services/voiceAgent.ts` | Frontend abstraction over `transcribe_audio` and `plan_tasks` Tauri commands. |
+| `apps/desktop/src/services/db.ts` | SQLite schema, migrations, CRUD, seeding. |
+| `apps/desktop/src-tauri/src/lib.rs` | Rust backend: OpenRouter API calls, SenseVoice download, global shortcuts, tray menu, window commands. |
+| `packages/shared/src` | Shared types, date helpers, ids, tokens. |
+| `apps/app/src` | Expo mobile app. |
+| `apps/web/src` | Next.js web app. |
 
 ## Environment
 
-Create `.env.local` at project root:
+Create `apps/desktop/.env.local`:
 
 ```
 OPENROUTER_API_KEY=sk-or-v1-...
@@ -147,14 +162,20 @@ Only `OPENROUTER_API_KEY` is required. The others fall back to sensible defaults
 # Install dependencies
 bun install
 
-# Run dev server (Vite + Tauri)
-bun run tauri:dev
+# Run desktop app
+bun run dev:desktop
 
-# Type check
-bun run check
+# Type check desktop
+bun run check:desktop
 
-# Build release
-bun run tauri:build
+# Build desktop release
+bun run build:desktop
+
+# Run mobile app
+bun run dev:app
+
+# Run web app
+bun run dev:web
 ```
 
 ## Global Shortcut
