@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WindowChrome } from "./components/chrome/WindowChrome";
 import { SettingsModal } from "./components/settings/SettingsModal";
+import { SyncButton } from "./components/sync/SyncButton";
 import { TaskDetailCard } from "./components/task/TaskDetailCard";
 import { TaskList } from "./components/task/TaskList";
 import { ToastContainer } from "./components/toast/ToastContainer";
@@ -67,6 +68,7 @@ function App() {
             <header className="list-header">
               <ViewSwitcher />
               <div className="header-actions">
+                <SyncButton />
                 <button
                   aria-label="Settings"
                   className="icon-button"

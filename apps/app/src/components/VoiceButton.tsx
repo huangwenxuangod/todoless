@@ -109,7 +109,11 @@ export function VoiceButton() {
 
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.hint}>{message}</Text>
+      {state !== "idle" && (
+        <View style={[styles.strip, state === "error" && styles.stripError]}>
+          <Text style={styles.hint}>{message}</Text>
+        </View>
+      )}
       <Pressable
         onPressIn={startRecording}
         onPressOut={stopRecording}
@@ -127,21 +131,41 @@ export function VoiceButton() {
 
 const styles = StyleSheet.create({
   wrapper: {
+    position: "absolute",
+    right: spacing.lg,
+    bottom: spacing.xl + 64,
     alignItems: "center",
     gap: spacing.sm,
-    paddingVertical: spacing.lg,
+    zIndex: 20,
+  },
+  strip: {
+    minWidth: 156,
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: "rgba(245, 240, 232, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stripError: {
+    borderColor: colors.error,
   },
   hint: {
     fontSize: 13,
-    color: colors.muted,
+    color: colors.text,
+    fontWeight: "600",
   },
   button: {
     width: 64,
     height: 64,
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceHover,
+    backgroundColor: "#2f365f",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(245, 240, 232, 0.12)",
   },
   recording: {
     backgroundColor: colors.accent,

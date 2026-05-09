@@ -1,11 +1,12 @@
 import { create } from "zustand";
 import {
   createDefaultTodayDueAt,
+  createNextRepeatDate,
   taskBelongsToView,
   taskMatchesView,
 } from "@todoless/shared/lib/date";
 import { createId } from "@todoless/shared/lib/ids";
-import type { SmartView, Task } from "@todoless/shared/types/task";
+import type { SmartView, Task, TaskStatus } from "@todoless/shared/types/task";
 import {
   initializeDb,
   insertTask,
@@ -49,19 +50,25 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   toggleTask: async (id) => {
     const task = get().tasks.find((t) => t.id === id);
     if (!task) return;
-    const nextStatus = task.status === "done" ? "open" : "done";
+    const nextStatus: TaskStatus = task.status === "done" ? "open" : "done";
+    const now = new Date().toISOString();
+    const nextRepeatTask = nextStatus === "done" ? createNextRepeatTask(task, now) : null;
     await updateTaskStatus(id, nextStatus);
+    if (nextRepeatTask) await insertTask(nextRepeatTask);
     set((state) => ({
-      tasks: state.tasks.map((t) =>
+      tasks: [
+        ...(nextRepeatTask ? [nextRepeatTask] : []),
+        ...state.tasks.map((t) =>
         t.id === id
           ? {
               ...t,
               status: nextStatus,
-              completedAt: nextStatus === "done" ? new Date().toISOString() : null,
-              updatedAt: new Date().toISOString(),
+              completedAt: nextStatus === "done" ? now : null,
+              updatedAt: now,
             }
           : t
-      ),
+        ),
+      ],
     }));
   },
 
@@ -75,6 +82,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       dueAt: createDefaultTodayDueAt("22:00"),
       reminderAt: null,
       priority: 1,
+      repeatRule: { type: "none" },
       tags: [],
       createdAt: now,
       updatedAt: now,
@@ -131,3 +139,17 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     return get().tasks.filter((t) => t.status === "open" && !t.dueAt);
   },
 }));
+
+function createNextRepeatTask(task: Task, now: string): Task | null {
+  if (task.repeatRule.type === "none") return null;
+  return {
+    ...task,
+    id: createId(),
+    status: "open",
+    dueAt: createNextRepeatDate(task.dueAt, task.repeatRule),
+    reminderAt: task.reminderAt ? createNextRepeatDate(task.reminderAt, task.repeatRule) : null,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: null,
+  };
+}

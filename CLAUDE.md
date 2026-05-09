@@ -156,6 +156,7 @@ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable",
 - Mobile is currently a local-first task-list companion, not a separate product branch.
 - It must inherit desktop's Zen Voice philosophy: dark warm surfaces, circular priority checkbox, sparse task rows, and voice as the primary action.
 - Keep the mobile scope to lists: Today / Tomorrow / Inbox / Tags, task detail, completion, and voice capture. Do not add notes, journals, complex calendar views, habits, team features, or chat UI.
+- Repeat scope is intentionally tiny: users only choose `daily` or `weekly`; `none` is an internal state for ordinary tasks and should not be shown as a selectable repeat option. Completing a repeat task creates the next occurrence and preserves the completed task.
 - Avoid `react-native-reanimated` / worklets in runtime code until the native runtime is verified. A previous runtime mismatch caused `installTurboModule` argument errors. Prefer plain React Native `Pressable`, `Animated`, and StyleSheet states for now.
 - With Zustand on React Native, do not select derived arrays directly inside the selector, e.g. avoid `useTaskStore((s) => s.getOpenTasks())`. Select raw state and derive with `useMemo` to avoid `getSnapshot should be cached` infinite loops.
 - Android export has been verified with:
@@ -203,6 +204,14 @@ node node_modules/expo/bin/cli start --offline --clear
 bun run dev:web
 ```
 
+## Desktop Packaging
+
+- Windows-first release uses Tauri's NSIS target.
+- Config lives in `apps/desktop/src-tauri/tauri.conf.json`.
+- Build output should be uploaded from `apps/desktop/src-tauri/target/release/bundle/nsis/`.
+- The download page should link to uploaded release assets, not local build paths.
+- Do not switch back to `"targets": "all"` unless macOS/Linux packaging is actively being configured.
+
 ## Global Shortcut
 
 Default: `Ctrl+Shift+Space`
@@ -234,6 +243,23 @@ Tasks are filtered into views based on `dueAt`:
 - **All**: Everything except deleted
 
 Tag filtering overrides view filtering. Selecting a tag shows all tasks (open + done) with that tag.
+
+## Sync
+
+Supabase migration lives at `supabase/migrations/20260509152000_initial_sync.sql`.
+
+Current sync decisions:
+
+- Local-first on desktop and mobile.
+- Email magic-link auth.
+- Login uploads existing local tasks.
+- Background sync is automatic after sign-in.
+- Last Write Wins by `updated_at`.
+- Soft deletes propagate through `deleted_at`.
+- First cloud scope is `tasks`, `tags`, `task_tags`, and `sync_state`.
+- Do not sync `events`, `recent_context`, or preference memory yet.
+- Keep sync UI as a small icon/status affordance in the task surface. Do not build a complex account dashboard.
+- Web does not expose a task UI yet.
 
 ## AI Task Parsing Rules
 

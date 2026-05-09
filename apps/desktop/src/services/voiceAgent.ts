@@ -48,6 +48,7 @@ export async function planTasksFromTranscript(transcript: string, recentTasks: s
       dueAt,
       reminderAt: task.reminderAt ?? null,
       priority: task.priority,
+      repeatRule: task.repeatRule ?? { type: "none" },
       tags: task.tags.map((tag): TaskTag => ({ id: `tag-${slugTag(tag)}`, name: tag, color: fallbackTagColor })),
     };
   });

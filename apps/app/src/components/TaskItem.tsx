@@ -1,4 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Clock, Repeat2 } from "lucide-react-native";
+import { formatTaskTime } from "@todoless/shared/lib/date";
 import { colors, radii, spacing } from "../constants/theme";
 import type { Task } from "@todoless/shared/types/task";
 
@@ -16,6 +18,8 @@ const priorityColors: Record<number, string> = {
 };
 
 export function TaskItem({ task, onToggle, onPress }: Props) {
+  const time = formatTaskTime(task.dueAt);
+
   return (
     <Pressable onPress={() => onPress(task)} style={styles.container}>
       <Pressable
@@ -38,25 +42,44 @@ export function TaskItem({ task, onToggle, onPress }: Props) {
       </Pressable>
 
       <View style={styles.body}>
-        <Text
-          style={[
-            styles.title,
-            task.status === "done" && {
-              textDecorationLine: "line-through",
-              color: colors.faint,
-            },
-          ]}
-        >
-          {task.title}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.title,
+              task.status === "done" && {
+                textDecorationLine: "line-through",
+                color: colors.faint,
+              },
+            ]}
+          >
+            {task.title}
+          </Text>
+          {time && <Text style={styles.time}>{time}</Text>}
+        </View>
 
-        {task.tags.length > 0 && (
+        {(task.tags.length > 0 || task.reminderAt || task.repeatRule.type !== "none") && (
           <View style={styles.meta}>
-            {task.tags.map((tag) => (
-              <View key={tag.id} style={styles.tag}>
+            {task.tags.slice(0, 2).map((tag) => (
+              <View key={tag.id} style={styles.tagInline}>
+                <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
                 <Text style={styles.tagText}>{tag.name}</Text>
               </View>
             ))}
+            {task.reminderAt && (
+              <View style={styles.tagInline}>
+                <Clock size={11} color={colors.faint} />
+                <Text style={styles.tagText}>Reminder</Text>
+              </View>
+            )}
+            {task.repeatRule.type !== "none" && (
+              <View style={styles.tagInline}>
+                <Repeat2 size={11} color={colors.faint} />
+                <Text style={styles.tagText}>
+                  {task.repeatRule.type === "daily" ? "Daily" : "Weekly"}
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -69,18 +92,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    marginBottom: spacing.sm,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(245, 240, 232, 0.06)",
   },
   checkbox: {
     paddingTop: 2,
   },
   circle: {
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
     borderRadius: radii.full,
     borderWidth: 2,
   },
@@ -88,21 +109,36 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.xs,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
   title: {
-    fontSize: 15,
+    flex: 1,
+    fontSize: 17,
     color: colors.text,
-    lineHeight: 22,
+    lineHeight: 24,
+  },
+  time: {
+    fontSize: 15,
+    color: "#5b82ff",
+    fontWeight: "600",
   },
   meta: {
     flexDirection: "row",
     gap: spacing.xs,
     flexWrap: "wrap",
   },
-  tag: {
-    backgroundColor: colors.panel,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radii.sm,
+  tagInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  tagDot: {
+    width: 6,
+    height: 6,
+    borderRadius: radii.full,
   },
   tagText: {
     fontSize: 12,

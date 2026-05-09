@@ -1,4 +1,4 @@
-import { CalendarDays, Inbox, X } from "lucide-react";
+import { CalendarDays, Inbox, Repeat2, X } from "lucide-react";
 import { useRef } from "react";
 import { useDismissableLayer } from "../../hooks/useDismissableLayer";
 import type { Task } from "@todoless/shared/types/task";
@@ -62,6 +62,19 @@ export function TaskDetailCard({ onClose, task }: { onClose: () => void; task: T
             <span className="task-card-source">
               <Inbox size={14} />
               {task.tags.map((t) => t.name).join(", ")}
+            </span>
+            {task.repeatRule.type !== "none" ? (
+              <span className="task-card-source">
+                <Repeat2 size={14} />
+                {task.repeatRule.type === "daily" ? "Daily" : "Weekly"}
+              </span>
+            ) : null}
+          </div>
+        ) : task.repeatRule.type !== "none" ? (
+          <div className="task-card-footer">
+            <span className="task-card-source">
+              <Repeat2 size={14} />
+              {task.repeatRule.type === "daily" ? "Daily" : "Weekly"}
             </span>
           </div>
         ) : null}

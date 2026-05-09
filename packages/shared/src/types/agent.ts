@@ -6,6 +6,13 @@ export const AgentTaskSchema = z.object({
   dueAt: z.string().nullable().optional(),
   reminderAt: z.string().nullable().optional(),
   priority: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+  repeatRule: z
+    .union([
+      z.object({ type: z.literal("none") }),
+      z.object({ type: z.literal("daily"), interval: z.literal(1).default(1) }),
+      z.object({ type: z.literal("weekly"), interval: z.literal(1).default(1) }),
+    ])
+    .optional(),
   tags: z.array(z.string()).default([]),
 });
 

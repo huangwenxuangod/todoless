@@ -1,5 +1,5 @@
 import { useMemo, useSyncExternalStore } from "react";
-import { createDefaultTodayDueAt, taskBelongsToView, taskMatchesView } from "@todoless/shared/lib/date";
+import { createDefaultTodayDueAt, createNextRepeatDate, taskBelongsToView, taskMatchesView } from "@todoless/shared/lib/date";
 import { createId } from "@todoless/shared/lib/ids";
 import { initializeDb, insertTask, loadTasksAndTags, recordEvent, softDeleteTask, updateTask, upsertTag } from "../services/db";
 import { showToast } from "./toastStore";
@@ -105,19 +105,29 @@ export function setActiveTag(activeTagId: string) {
 
 export async function toggleTask(id: string) {
   const now = new Date().toISOString();
-  const nextTasks: Task[] = state.tasks.map((task) => {
-    if (task.id !== id) return task;
-    const status: TaskStatus = task.status === "done" ? "open" : "done";
-    return {
-      ...task,
-      status,
-      completedAt: task.status === "done" ? null : now,
-      updatedAt: now,
-    };
+  const current = state.tasks.find((task) => task.id === id);
+  if (!current) return;
+  const status: TaskStatus = current.status === "done" ? "open" : "done";
+  const updatedTask: Task = {
+    ...current,
+    status,
+    completedAt: current.status === "done" ? null : now,
+    updatedAt: now,
+  };
+  const nextRepeatTask = status === "done" ? createNextRepeatTask(updatedTask, now) : null;
+  const nextTasks = state.tasks.map((task) => (task.id === id ? updatedTask : task));
+
+  emit({
+    ...state,
+    tasks: nextRepeatTask ? [nextRepeatTask, ...nextTasks] : nextTasks,
+    recentTaskIds: nextRepeatTask ? [nextRepeatTask.id, ...state.recentTaskIds].slice(0, 10) : state.recentTaskIds,
   });
-  emit({ ...state, tasks: nextTasks });
-  const task = nextTasks.find((item) => item.id === id);
-  if (task) await updateTask(task, task.status === "done" ? "task.completed" : "task.reopened", { id, completedAt: task.completedAt });
+
+  await updateTask(updatedTask, status === "done" ? "task.completed" : "task.reopened", { id, completedAt: updatedTask.completedAt });
+  if (nextRepeatTask) {
+    await insertTask(nextRepeatTask, "task.repeat.created");
+    showToast("Next repeat created", "success");
+  }
 }
 
 export async function createTask(title: string) {
@@ -131,6 +141,7 @@ export async function createTask(title: string) {
     dueAt,
     reminderAt: null,
     priority: 1,
+    repeatRule: { type: "none" },
     tags: [],
     createdAt: now,
     updatedAt: now,
@@ -163,6 +174,7 @@ export async function createTasksFromAgent(tasks: Array<Omit<Task, "id" | "statu
       dueAt: item.dueAt,
       reminderAt: item.reminderAt,
       priority: item.priority,
+      repeatRule: item.repeatRule,
       tags,
       createdAt: now,
       updatedAt: now,
@@ -201,4 +213,20 @@ function mergeTags(current: TaskTag[], incoming: TaskTag[]) {
     map.set(tag.id, tag);
   }
   return [...map.values()].sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function createNextRepeatTask(task: Task, now: string): Task | null {
+  if (task.repeatRule.type === "none") return null;
+  const dueAt = createNextRepeatDate(task.dueAt, task.repeatRule);
+  const reminderAt = task.reminderAt ? createNextRepeatDate(task.reminderAt, task.repeatRule) : null;
+  return {
+    ...task,
+    id: createId(),
+    status: "open",
+    dueAt,
+    reminderAt,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: null,
+  };
 }

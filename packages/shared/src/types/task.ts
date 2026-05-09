@@ -4,6 +4,12 @@ export type TaskPriority = 0 | 1 | 2 | 3;
 
 export type SmartView = "all" | "today" | "tomorrow" | "next7" | "inbox";
 
+export type RepeatFrequency = "daily" | "weekly";
+
+export type RepeatRule =
+  | { type: "none" }
+  | { type: RepeatFrequency; interval: 1 };
+
 export type TaskTag = {
   id: string;
   name: string;
@@ -18,6 +24,7 @@ export type Task = {
   dueAt: string | null;
   reminderAt: string | null;
   priority: TaskPriority;
+  repeatRule: RepeatRule;
   tags: TaskTag[];
   createdAt: string;
   updatedAt: string;

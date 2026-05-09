@@ -1,6 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import { seedTags, seedTasks } from "../data/seed";
-import type { Task, TaskPriority, TaskStatus, TaskTag } from "@todoless/shared/types/task";
+import type { RepeatRule, Task, TaskPriority, TaskStatus, TaskTag } from "@todoless/shared/types/task";
 
 type TaskRow = {
   id: string;
@@ -10,6 +10,7 @@ type TaskRow = {
   due_at: string | null;
   reminder_at: string | null;
   priority: TaskPriority;
+  repeat_rule: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -46,12 +47,14 @@ export async function initializeDb() {
       due_at TEXT,
       reminder_at TEXT,
       priority INTEGER NOT NULL DEFAULT 1,
+      repeat_rule TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       completed_at TEXT,
       deleted_at TEXT
     )
   `);
+  await ensureTaskColumn("repeat_rule", "TEXT");
   await db.execute(`
     CREATE TABLE IF NOT EXISTS tags (
       id TEXT PRIMARY KEY,
@@ -122,9 +125,21 @@ export async function insertTask(task: Task, eventType = "task.created") {
   const db = await getDb();
   await db.execute(
     `INSERT OR REPLACE INTO tasks
-      (id, title, content, status, due_at, reminder_at, priority, created_at, updated_at, completed_at, deleted_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL)`,
-    [task.id, task.title, task.content, task.status, task.dueAt, task.reminderAt, task.priority, task.createdAt, task.updatedAt, task.completedAt],
+      (id, title, content, status, due_at, reminder_at, priority, repeat_rule, created_at, updated_at, completed_at, deleted_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULL)`,
+    [
+      task.id,
+      task.title,
+      task.content,
+      task.status,
+      task.dueAt,
+      task.reminderAt,
+      task.priority,
+      serializeRepeatRule(task.repeatRule),
+      task.createdAt,
+      task.updatedAt,
+      task.completedAt,
+    ],
   );
   await db.execute("DELETE FROM task_tags WHERE task_id = $1", [task.id]);
   for (const tag of task.tags) {
@@ -139,9 +154,20 @@ export async function updateTask(task: Task, eventType = "task.updated", payload
   const db = await getDb();
   await db.execute(
     `UPDATE tasks
-      SET title = $1, content = $2, status = $3, due_at = $4, reminder_at = $5, priority = $6, updated_at = $7, completed_at = $8
-      WHERE id = $9`,
-    [task.title, task.content, task.status, task.dueAt, task.reminderAt, task.priority, task.updatedAt, task.completedAt, task.id],
+      SET title = $1, content = $2, status = $3, due_at = $4, reminder_at = $5, priority = $6, repeat_rule = $7, updated_at = $8, completed_at = $9
+      WHERE id = $10`,
+    [
+      task.title,
+      task.content,
+      task.status,
+      task.dueAt,
+      task.reminderAt,
+      task.priority,
+      serializeRepeatRule(task.repeatRule),
+      task.updatedAt,
+      task.completedAt,
+      task.id,
+    ],
   );
   await recordEvent(eventType, payload);
 }
@@ -225,11 +251,36 @@ function rowToTask(row: TaskRow, tags: TaskTag[]): Task {
     dueAt: row.due_at,
     reminderAt: row.reminder_at,
     priority: row.priority,
+    repeatRule: parseRepeatRule(row.repeat_rule),
     tags,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at,
   };
+}
+
+async function ensureTaskColumn(name: string, definition: string) {
+  const db = await getDb();
+  const columns = await db.select<Array<{ name: string }>>("PRAGMA table_info(tasks)");
+  if (!columns.some((column) => column.name === name)) {
+    await db.execute(`ALTER TABLE tasks ADD COLUMN ${name} ${definition}`);
+  }
+}
+
+function serializeRepeatRule(rule: RepeatRule) {
+  return rule.type === "none" ? null : JSON.stringify(rule);
+}
+
+function parseRepeatRule(value: string | null): RepeatRule {
+  if (!value) return { type: "none" };
+  try {
+    const parsed = JSON.parse(value) as Partial<RepeatRule>;
+    if (parsed.type === "daily") return { type: "daily", interval: 1 };
+    if (parsed.type === "weekly") return { type: "weekly", interval: 1 };
+    return { type: "none" };
+  } catch {
+    return { type: "none" };
+  }
 }
 
 function hashString(value: string) {

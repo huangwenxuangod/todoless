@@ -1,4 +1,4 @@
-import type { SmartView, Task } from "../types/task";
+import type { RepeatRule, SmartView, Task } from "../types/task";
 
 const dayStart = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
@@ -55,5 +55,17 @@ export const createDefaultTodayDueAt = (time = "22:00") => {
 export const createDefaultReminderAt = (dueAt = createDefaultTodayDueAt(), hour = 9) => {
   const date = new Date(dueAt);
   date.setHours(hour, 0, 0, 0);
+  return date.toISOString();
+};
+
+export const createNextRepeatDate = (value: string | null, repeatRule: RepeatRule) => {
+  if (repeatRule.type === "none") return null;
+  const date = value ? new Date(value) : new Date();
+  if (repeatRule.type === "daily") {
+    date.setDate(date.getDate() + repeatRule.interval);
+  }
+  if (repeatRule.type === "weekly") {
+    date.setDate(date.getDate() + 7 * repeatRule.interval);
+  }
   return date.toISOString();
 };

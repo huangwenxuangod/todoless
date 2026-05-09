@@ -14,6 +14,26 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: /^react$/,
+        replacement: path.resolve(__dirname, "../../node_modules/react"),
+      },
+      {
+        find: /^react\/(.*)$/,
+        replacement: path.resolve(__dirname, "../../node_modules/react/$1"),
+      },
+      {
+        find: /^react-dom$/,
+        replacement: path.resolve(__dirname, "../../node_modules/react-dom"),
+      },
+      {
+        find: /^react-dom\/(.*)$/,
+        replacement: path.resolve(__dirname, "../../node_modules/react-dom/$1"),
+      },
+      {
+        find: /^lucide-react$/,
+        replacement: path.resolve(__dirname, "../../node_modules/lucide-react"),
+      },
+      {
         find: /^@todoless\/shared$/,
         replacement: path.resolve(__dirname, "../../packages/shared/src/index.ts"),
       },
@@ -22,5 +42,6 @@ export default defineConfig({
         replacement: path.resolve(__dirname, "../../packages/shared/src/$1"),
       },
     ],
+    dedupe: ["react", "react-dom", "lucide-react"],
   },
 });

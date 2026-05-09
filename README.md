@@ -21,6 +21,7 @@ As of 2026-05-09, the repository is a Bun workspace with three apps and one shar
 - One utterance can create up to 10 tasks.
 - No confirmation step by default. The app should create tasks directly, then make correction/editing fast.
 - Tasks are local-first today. Cloud sync is a future option, not an MVP dependency.
+- Repeating tasks are deliberately minimal: users only choose `daily` or `weekly`; ordinary non-repeating tasks do not show a repeat option.
 - The UI should stay close to a minimal task widget: view switcher, list, task detail, voice button, settings.
 - Do not expand into journal, notes, team collaboration, OKR, habits, or complex calendar workflows.
 
@@ -36,6 +37,7 @@ Key capabilities:
 - Local SQLite storage through `@tauri-apps/plugin-sql`.
 - Soft delete and event logging for future learning.
 - Tags stored in a separate table and linked through `task_tags`.
+- Repeat support for daily and weekly tasks. Completing a repeat task creates the next occurrence and preserves the completed one.
 - OpenRouter ASR using `openai/whisper-large-v3-turbo` by default.
 - OpenRouter task planning using `deepseek/deepseek-v4-flash` by default.
 - Optional SenseVoice Small model download flow for future local ASR.
@@ -48,6 +50,14 @@ bun run dev:desktop
 bun run check:desktop
 bun run build:desktop
 ```
+
+Desktop release packaging:
+
+- Windows distribution uses the Tauri NSIS installer target.
+- Build command: `bun run build:desktop`.
+- Expected artifact path: `apps/desktop/src-tauri/target/release/bundle/nsis/`.
+- The public download page should point to the signed `.exe` installer once a release is uploaded.
+- MSI/DMG/AppImage are later platform targets, not the current Windows-first release path.
 
 Desktop environment:
 
@@ -72,6 +82,17 @@ Current intent:
 - Shared task model with desktop.
 - Voice-first mobile capture that inherits the desktop philosophy: one primary mic action, task list second, typing as fallback.
 - Future sync can be added without changing the task domain model.
+- Supabase sync migration and service skeletons are in place; the product surface should stay as a small sync icon, not a complex account panel.
+
+Mobile product decisions:
+
+- Default view is Today.
+- Bottom navigation is limited to Tasks and Settings.
+- Tasks view uses a top `Today` dropdown for Today / Tomorrow / Next 7 Days / Inbox / Tags.
+- The primary action is a fixed bottom-right mic button: hold to record, release to submit.
+- Recording feedback should use a small bottom recording strip, not a full-screen voice page.
+- Created/error feedback uses English toast copy.
+- Mobile should feel like a phone-sized version of the desktop widget, not a shrunken desktop window.
 
 Current engineering notes:
 
@@ -144,8 +165,35 @@ Default task planning rules:
 - If no date/time is mentioned, default due date is today at the hidden default due time, currently `22:00`.
 - If a date is mentioned without time, due time uses the default due time and reminder defaults to `09:00`.
 - Priority is inferred from urgency, consequence, and wording.
+- Repeat is inferred only for simple daily / weekly language.
 - Tags are coarse and AI-generated.
 - `content` stays null unless the speech contains useful execution context.
+
+## Sync Direction
+
+The sync architecture is local-first:
+
+```text
+Desktop SQLite <-> Supabase Postgres <-> Mobile SQLite
+```
+
+Current decisions:
+
+- Supabase Auth with email magic link.
+- Local use remains available before login.
+- After login, local tasks should upload to the cloud.
+- Background sync is automatic once signed in.
+- The visible sync surface is just an icon in the task header.
+- Conflict resolution is Last Write Wins using `updated_at`.
+- Deletes are soft deletes through `deleted_at`.
+- First sync scope: `tasks`, `tags`, `task_tags`, and `sync_state`.
+- Web does not expose a task page yet.
+
+Migration file:
+
+```text
+supabase/migrations/20260509152000_initial_sync.sql
+```
 
 ## Workspace Commands
 

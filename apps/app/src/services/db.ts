@@ -1,5 +1,5 @@
 import * as SQLite from "expo-sqlite";
-import type { Task, TaskTag } from "@todoless/shared/types/task";
+import type { RepeatRule, Task, TaskTag } from "@todoless/shared/types/task";
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -21,7 +21,8 @@ export async function initializeDb() {
       status TEXT NOT NULL DEFAULT 'open',
       due_at TEXT,
       reminder_at TEXT,
-      priority INTEGER NOT NULL DEFAULT 1,
+    priority INTEGER NOT NULL DEFAULT 1,
+      repeat_rule TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       completed_at TEXT,
@@ -42,6 +43,7 @@ export async function initializeDb() {
       PRIMARY KEY (task_id, tag_id)
     );
   `);
+  await ensureTaskColumn("repeat_rule", "TEXT");
 }
 
 export async function loadTasks(): Promise<Task[]> {
@@ -54,6 +56,7 @@ export async function loadTasks(): Promise<Task[]> {
     due_at: string | null;
     reminder_at: string | null;
     priority: number;
+    repeat_rule: string | null;
     created_at: string;
     updated_at: string;
     completed_at: string | null;
@@ -78,6 +81,7 @@ export async function loadTasks(): Promise<Task[]> {
     dueAt: row.due_at,
     reminderAt: row.reminder_at,
     priority: row.priority as 0 | 1 | 2 | 3,
+    repeatRule: parseRepeatRule(row.repeat_rule),
     tags: tagRows
       .filter((t) => t.task_id === row.id)
       .map((t) => ({ id: t.tag_id, name: t.name, color: t.color })),
@@ -91,8 +95,8 @@ export async function insertTask(task: Task) {
   const db = await getDb();
   await db.runAsync(
     `INSERT OR REPLACE INTO tasks
-      (id, title, content, status, due_at, reminder_at, priority, created_at, updated_at, completed_at, deleted_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+      (id, title, content, status, due_at, reminder_at, priority, repeat_rule, created_at, updated_at, completed_at, deleted_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
     [
       task.id,
       task.title,
@@ -101,6 +105,7 @@ export async function insertTask(task: Task) {
       task.dueAt,
       task.reminderAt,
       task.priority,
+      serializeRepeatRule(task.repeatRule),
       task.createdAt,
       task.updatedAt,
       task.completedAt,
@@ -136,4 +141,28 @@ export async function deleteTask(id: string) {
     "UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?",
     [now, now, id]
   );
+}
+
+async function ensureTaskColumn(name: string, definition: string) {
+  const db = await getDb();
+  const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(tasks)");
+  if (!columns.some((column) => column.name === name)) {
+    await db.execAsync(`ALTER TABLE tasks ADD COLUMN ${name} ${definition}`);
+  }
+}
+
+function serializeRepeatRule(rule: RepeatRule) {
+  return rule.type === "none" ? null : JSON.stringify(rule);
+}
+
+function parseRepeatRule(value: string | null): RepeatRule {
+  if (!value) return { type: "none" };
+  try {
+    const parsed = JSON.parse(value) as Partial<RepeatRule>;
+    if (parsed.type === "daily") return { type: "daily", interval: 1 };
+    if (parsed.type === "weekly") return { type: "weekly", interval: 1 };
+    return { type: "none" };
+  } catch {
+    return { type: "none" };
+  }
 }

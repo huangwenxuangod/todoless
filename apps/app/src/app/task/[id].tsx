@@ -117,7 +117,7 @@ export default function TaskDetailScreen() {
 
         {/* Content */}
         {task.content && (
-          <Text style={styles.content}>{task.content}</Text>
+          <Text style={styles.contentText}>{task.content}</Text>
         )}
 
         {/* Meta */}
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 30,
   },
-  content: {
+  contentText: {
     fontSize: 15,
     color: colors.muted,
     lineHeight: 22,

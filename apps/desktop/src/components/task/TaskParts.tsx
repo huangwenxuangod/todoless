@@ -1,4 +1,4 @@
-import { Clock3 } from "lucide-react";
+import { Clock3, Repeat2 } from "lucide-react";
 import { formatTaskTime } from "@todoless/shared/lib/date";
 import { toggleTask } from "../../stores/taskStore";
 import type { Task, TaskPriority } from "@todoless/shared/types/task";
@@ -63,6 +63,12 @@ export function TaskMetaRow({
         <span className={timeClassName}>
           {showClock ? <Clock3 size={11} style={{ verticalAlign: "middle", opacity: 0.6 }} /> : null}
           {formatTaskTime(task.reminderAt ?? task.dueAt)}
+        </span>
+      ) : null}
+      {task.repeatRule.type !== "none" ? (
+        <span className={timeClassName} title={task.repeatRule.type === "daily" ? "Repeats daily" : "Repeats weekly"}>
+          <Repeat2 size={11} style={{ verticalAlign: "middle", opacity: 0.6 }} />
+          {task.repeatRule.type === "daily" ? "Daily" : "Weekly"}
         </span>
       ) : null}
     </div>

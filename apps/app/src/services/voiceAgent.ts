@@ -55,12 +55,13 @@ export async function planTasksFromTranscript(
 Return only valid JSON. No markdown. No explanation.
 Create up to 10 tasks from the transcript.
 Use coarse tags only.
+Detect simple recurring tasks. Use repeatRule {"type":"daily","interval":1} for daily/every day tasks, {"type":"weekly","interval":1} for weekly/every week tasks, otherwise {"type":"none"}.
 When no time is provided, set dueAt to today at 22:00 and reminderAt to null.
 When a date is provided but no time is provided, set dueAt to that date at 22:00 and reminderAt to that date at 09:00.
 Use priority: 3=P1 urgent/high consequence, 2=P2 important or soon, 1=P3 normal, 0=P4 low pressure.
 Use content only when the task needs extra execution context; short tasks should have content null.
 Output schema:
-{"intent":"create_tasks","tasks":[{"title":"string","content":null,"dueAt":"ISO string or null","reminderAt":"ISO string or null","priority":0,"tags":["string"]}],"memoryUpdates":[]}`;
+{"intent":"create_tasks","tasks":[{"title":"string","content":null,"dueAt":"ISO string or null","reminderAt":"ISO string or null","priority":0,"repeatRule":{"type":"none"},"tags":["string"]}],"memoryUpdates":[]}`;
 
   const user = `Today: ${new Date().toISOString()}
 Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"}
@@ -105,6 +106,7 @@ Transcript: ${transcript}`;
       dueAt: task.dueAt ?? createDefaultTodayDueAt("22:00"),
       reminderAt: task.reminderAt ?? null,
       priority: task.priority,
+      repeatRule: task.repeatRule ?? { type: "none" },
       tags: task.tags.map(
         (tag): TaskTag => ({
           id: `tag-${slugTag(tag)}`,

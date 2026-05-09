@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Calendar1, Inbox, Settings } from "lucide-react-native";
+import { CheckSquare, Inbox, Settings } from "lucide-react-native";
 import { colors } from "../../constants/theme";
 
 export default function TabLayout() {
@@ -20,14 +20,16 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Today",
-          tabBarIcon: ({ color }) => <Calendar1 size={20} color={color} />,
+          title: "Tasks",
+          headerShown: false,
+          tabBarIcon: ({ color }) => <CheckSquare size={20} color={color} />,
         }}
       />
       <Tabs.Screen
         name="inbox"
         options={{
           title: "Inbox",
+          href: null,
           tabBarIcon: ({ color }) => <Inbox size={20} color={color} />,
         }}
       />
@@ -35,6 +37,7 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: "Settings",
+          headerShown: false,
           tabBarIcon: ({ color }) => <Settings size={20} color={color} />,
         }}
       />

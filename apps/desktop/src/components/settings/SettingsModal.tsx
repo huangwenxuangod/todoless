@@ -370,7 +370,7 @@ function AccountPane() {
   return (
     <section className="settings-pane">
       <h2>Account</h2>
-      <p>Local-only for now. Cloud sync can live here later.</p>
+      <p>Tasks stay local until sync is connected.</p>
       <div className="settings-row">
         <span>Status</span>
         <strong>Local</strong>
