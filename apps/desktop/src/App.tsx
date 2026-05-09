@@ -1,5 +1,6 @@
 import { Settings } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { msUntilNextLocalDay } from "@todoless/shared/lib/date";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -57,6 +58,19 @@ function App() {
       void tasksUpdatedPromise.then((unlisten) => unlisten());
     };
   }, [startRecording, stopRecording]);
+
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const timeoutId = setTimeout(() => {
+      void hydrateTaskStore();
+      intervalId = setInterval(() => void hydrateTaskStore(), 24 * 60 * 60 * 1000);
+    }, msUntilNextLocalDay() + 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
 
   return (
     <>
