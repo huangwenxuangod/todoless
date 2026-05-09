@@ -5,6 +5,7 @@
   "type": "module",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
+    "postinstall": "node scripts/patch-react-native-bun.mjs",
     "dev:desktop": "bun run --cwd apps/desktop tauri:dev",
     "build:desktop": "bun run --cwd apps/desktop tauri:build",
     "check:desktop": "bun run --cwd apps/desktop check",
@@ -16,13 +17,5 @@
   },
   "devDependencies": {
     "typescript": "latest"
-  },
-  "dependencies": {
-    "expo-asset": "~11.0.5",
-    "expo-av": "~15.0.2",
-    "expo-sqlite": "~15.1.4",
-    "react-native-gesture-handler": "~2.20.2",
-    "react-native-reanimated": "^4.3.1",
-    "react-native-safe-area-context": "^5.7.0"
   }
 }

@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { taskBelongsToView } from "@todoless/shared/lib/date";
 import { useTaskStore } from "../../stores/taskStore";
 import { TaskItem } from "../../components/TaskItem";
 import { VoiceButton } from "../../components/VoiceButton";
@@ -7,8 +9,12 @@ import { colors, spacing } from "../../constants/theme";
 import { router } from "expo-router";
 
 export default function TodayScreen() {
-  const openTasks = useTaskStore((s) => s.getOpenTasks());
+  const tasks = useTaskStore((s) => s.tasks);
   const toggleTask = useTaskStore((s) => s.toggleTask);
+  const openTasks = useMemo(
+    () => tasks.filter((task) => taskBelongsToView(task, "today")),
+    [tasks]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

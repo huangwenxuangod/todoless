@@ -7,13 +7,6 @@ import {
   Alert,
 } from "react-native";
 import { Audio } from "expo-av";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withRepeat,
-  withSequence,
-} from "react-native-reanimated";
 import { Mic } from "lucide-react-native";
 import { colors, radii, spacing } from "../constants/theme";
 import { useTaskStore } from "../stores/taskStore";
@@ -28,7 +21,6 @@ export function VoiceButton() {
   const [state, setState] = useState<VoiceState>("idle");
   const [message, setMessage] = useState("Hold to speak");
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const scale = useSharedValue(1);
   const addTasksFromAgent = useTaskStore((s) => s.addTasksFromAgent);
 
   const startRecording = useCallback(async () => {
@@ -50,14 +42,6 @@ export function VoiceButton() {
       recordingRef.current = recording;
       setState("recording");
       setMessage("Listening...");
-      scale.value = withRepeat(
-        withSequence(
-          withSpring(1.2, { damping: 2 }),
-          withSpring(1, { damping: 2 })
-        ),
-        -1,
-        true
-      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Mic error";
       setState("error");
@@ -67,7 +51,7 @@ export function VoiceButton() {
         setMessage("Hold to speak");
       }, 2000);
     }
-  }, [scale]);
+  }, []);
 
   const stopRecording = useCallback(async () => {
     const recording = recordingRef.current;
@@ -77,7 +61,6 @@ export function VoiceButton() {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       recordingRef.current = null;
-      scale.value = 1;
 
       if (!uri) throw new Error("No recording found");
 
@@ -122,28 +105,22 @@ export function VoiceButton() {
         setMessage("Hold to speak");
       }, 3000);
     }
-  }, [addTasksFromAgent, scale]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  }, [addTasksFromAgent]);
 
   return (
     <View style={styles.wrapper}>
       <Text style={styles.hint}>{message}</Text>
-      <Animated.View style={animatedStyle}>
-        <Pressable
-          onPressIn={startRecording}
-          onPressOut={stopRecording}
-          style={[
-            styles.button,
-            state === "recording" && { backgroundColor: colors.accent },
-            state === "error" && { backgroundColor: colors.error },
-          ]}
-        >
-          <Mic size={28} color={colors.text} />
-        </Pressable>
-      </Animated.View>
+      <Pressable
+        onPressIn={startRecording}
+        onPressOut={stopRecording}
+        style={[
+          styles.button,
+          state === "recording" && styles.recording,
+          state === "error" && styles.error,
+        ]}
+      >
+        <Mic size={28} color={colors.text} />
+      </Pressable>
     </View>
   );
 }
@@ -165,5 +142,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceHover,
     alignItems: "center",
     justifyContent: "center",
+  },
+  recording: {
+    backgroundColor: colors.accent,
+    transform: [{ scale: 1.08 }],
+  },
+  error: {
+    backgroundColor: colors.error,
   },
 });

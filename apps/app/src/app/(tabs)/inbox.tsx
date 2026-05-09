@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTaskStore } from "../../stores/taskStore";
@@ -6,8 +7,12 @@ import { colors, spacing } from "../../constants/theme";
 import { router } from "expo-router";
 
 export default function InboxScreen() {
-  const tasks = useTaskStore((s) => s.getInboxTasks());
+  const allTasks = useTaskStore((s) => s.tasks);
   const toggleTask = useTaskStore((s) => s.toggleTask);
+  const tasks = useMemo(
+    () => allTasks.filter((task) => task.status === "open" && !task.dueAt),
+    [allTasks]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
