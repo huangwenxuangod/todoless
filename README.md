@@ -11,7 +11,7 @@ As of 2026-05-09, the repository is a Bun workspace with three apps and one shar
 | Package | Path | Status | Purpose |
 |---|---|---|---|
 | Desktop | `apps/desktop` | Active MVP | Tauri Windows app with main window, widget, SQLite, voice pipeline, settings |
-| Mobile | `apps/app` | Early implementation | Expo app for mobile task viewing/capture |
+| Mobile | `apps/app` | Early implementation | Expo SDK 54 app for mobile task viewing/capture |
 | Web | `apps/web` | Active landing app | Next.js marketing site, demo, pricing, download, waitlist |
 | Shared | `packages/shared` | Active | Shared task types, date/id helpers, design tokens |
 
@@ -63,19 +63,35 @@ Only `OPENROUTER_API_KEY` is required. Model values have defaults.
 
 ## Mobile App
 
-The mobile app lives in `apps/app` and uses Expo Router, Expo SQLite, Zustand, and shared task helpers from `packages/shared`.
+The mobile app lives in `apps/app` and uses Expo SDK 54, React Native 0.81, Expo Router 6, Expo SQLite, Zustand, and shared task helpers from `packages/shared`.
 
 Current intent:
 
 - Mobile-friendly Today / Inbox / Settings surfaces.
 - Local task storage first.
 - Shared task model with desktop.
+- Voice-first mobile capture that inherits the desktop philosophy: one primary mic action, task list second, typing as fallback.
 - Future sync can be added without changing the task domain model.
+
+Current engineering notes:
+
+- The workspace is Bun-only. `pnpm` files were removed.
+- `bunfig.toml` uses the hoisted linker because Expo/React Native 0.81 expects a conventional `node_modules` layout.
+- `postinstall` runs `scripts/patch-react-native-bun.mjs` to patch missing React Native files in Bun's `.bun` package mirror on Windows.
+- Android production export has been verified after the Expo 54 migration.
+- Avoid runtime use of `react-native-reanimated` / worklets until the native runtime is explicitly configured; current mobile interactions use plain React Native primitives.
 
 Run:
 
 ```bash
 bun run dev:app
+```
+
+If the Bun script is blocked by the local shell sandbox, run Expo directly:
+
+```bash
+cd apps/app
+node node_modules/expo/bin/cli start --offline --clear
 ```
 
 ## Web App

@@ -1,6 +1,6 @@
 # todoless
 
-A voice-first task product built as a Bun workspace.
+A voice-first task product built as a Bun-only workspace.
 
 ## Overview
 
@@ -21,7 +21,7 @@ todoless turns spoken words into structured tasks. The desktop app remains the M
 |-------|-----------|
 | Desktop Shell | Tauri v2 (Rust), under `apps/desktop` |
 | Desktop Frontend | React 19 + TypeScript + Vite |
-| Mobile | Expo Router + React Native + Expo SQLite |
+| Mobile | Expo SDK 54 + React Native 0.81 + Expo Router 6 + Expo SQLite |
 | Web | Next.js |
 | Styling | Tailwind CSS v4 (CSS-first config, no `tailwind.config.js`) |
 | Animations | Framer Motion |
@@ -31,6 +31,13 @@ todoless turns spoken words into structured tasks. The desktop app remains the M
 | Mobile Database | Expo SQLite |
 | Desktop State | Custom stores with `useSyncExternalStore` |
 | Mobile State | Zustand |
+
+## Package Manager Rules
+
+- Use Bun only. Do not reintroduce `pnpm-lock.yaml` or `pnpm-workspace.yaml`.
+- `bunfig.toml` intentionally sets `linker = "hoisted"` because Expo / React Native 0.81 expects a conventional root `node_modules` layout.
+- Root `postinstall` runs `scripts/patch-react-native-bun.mjs`. Keep this script unless Bun's React Native package layout no longer needs patching on Windows.
+- After dependency changes that touch Expo / React Native, run the patch script through `bun install` before testing mobile.
 
 ## Architecture
 
@@ -144,6 +151,20 @@ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable",
 | `apps/app/src` | Expo mobile app. |
 | `apps/web/src` | Next.js web app. |
 
+## Mobile App Notes
+
+- Mobile is currently a local-first task-list companion, not a separate product branch.
+- It must inherit desktop's Zen Voice philosophy: dark warm surfaces, circular priority checkbox, sparse task rows, and voice as the primary action.
+- Keep the mobile scope to lists: Today / Tomorrow / Inbox / Tags, task detail, completion, and voice capture. Do not add notes, journals, complex calendar views, habits, team features, or chat UI.
+- Avoid `react-native-reanimated` / worklets in runtime code until the native runtime is verified. A previous runtime mismatch caused `installTurboModule` argument errors. Prefer plain React Native `Pressable`, `Animated`, and StyleSheet states for now.
+- With Zustand on React Native, do not select derived arrays directly inside the selector, e.g. avoid `useTaskStore((s) => s.getOpenTasks())`. Select raw state and derive with `useMemo` to avoid `getSnapshot should be cached` infinite loops.
+- Android export has been verified with:
+
+```bash
+cd apps/app
+node node_modules/expo/bin/cli export --platform android --clear --output-dir .expo-export-test
+```
+
 ## Environment
 
 Create `apps/desktop/.env.local`:
@@ -173,6 +194,10 @@ bun run build:desktop
 
 # Run mobile app
 bun run dev:app
+
+# Fallback direct Expo command
+cd apps/app
+node node_modules/expo/bin/cli start --offline --clear
 
 # Run web app
 bun run dev:web
