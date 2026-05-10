@@ -3,7 +3,8 @@ import { createDefaultTodayDueAt, createNextRepeatDate, taskBelongsToView, taskM
 import { createId } from "@todoless/shared/lib/ids";
 import { initializeDb, insertTask, loadTasksAndTags, recordEvent, softDeleteTask, updateTask, upsertTag } from "../services/db";
 import { showToast } from "./toastStore";
-import type { SmartView, Task, TaskPriority, TaskStatus, TaskTag } from "@todoless/shared/types/task";
+import type { AgentTarget, AgentTaskPatch } from "@todoless/shared/types/agent";
+import type { RepeatRule, SmartView, Task, TaskPriority, TaskStatus, TaskTag } from "@todoless/shared/types/task";
 
 type TaskStoreState = {
   tasks: Task[];
@@ -194,12 +195,92 @@ export async function createTasksFromAgent(tasks: Array<Omit<Task, "id" | "statu
   return created;
 }
 
+export async function executeAgentCommand(command: import("../services/voiceAgent").VoiceCommand, transcript: string) {
+  if (command.intent === "create_tasks") {
+    const created = await createTasksFromAgent(command.tasks, transcript);
+    await recordEvent("voice.command.executed", { transcript, intent: command.intent, count: created.length });
+    return {
+      count: created.length,
+      message: `Created ${created.length} task${created.length > 1 ? "s" : ""}`,
+    };
+  }
+
+  await recordEvent("voice.transcript", { transcript, intent: command.intent });
+
+  if (command.intent === "update_tasks") {
+    const updated = await applyTaskUpdates(command.updates, "voice.task.updated");
+    return { count: updated, message: `Updated ${updated} task${updated > 1 ? "s" : ""}` };
+  }
+
+  if (command.intent === "complete_tasks") {
+    let completed = 0;
+    for (const target of command.targets) {
+      const task = resolveTaskTarget(target);
+      if (task && task.status === "open") {
+        await toggleTask(task.id);
+        completed += 1;
+      }
+    }
+    return { count: completed, message: `Completed ${completed} task${completed > 1 ? "s" : ""}` };
+  }
+
+  if (command.intent === "delete_tasks") {
+    let deleted = 0;
+    for (const target of command.targets) {
+      const task = resolveTaskTarget(target);
+      if (task) {
+        await deleteTask(task.id);
+        deleted += 1;
+      }
+    }
+    return { count: deleted, message: `Deleted ${deleted} task${deleted > 1 ? "s" : ""}` };
+  }
+
+  if (command.intent === "set_reminders") {
+    const updated = await applyTaskUpdates(
+      command.updates.map((update) => ({
+        target: update.target,
+        patch: { reminderAt: update.reminderAt },
+      })),
+      "voice.reminder.updated",
+    );
+    return { count: updated, message: updated === 1 ? "Reminder updated" : `Updated ${updated} reminders` };
+  }
+
+  if (command.intent === "set_repeat") {
+    const updated = await applyTaskUpdates(
+      command.updates.map((update) => ({
+        target: update.target,
+        patch: { repeatRule: update.repeatRule },
+      })),
+      "voice.repeat.updated",
+    );
+    return { count: updated, message: updated === 1 ? "Repeat updated" : `Updated ${updated} repeats` };
+  }
+
+  return { count: 0, message: "No task changed" };
+}
+
 export async function updateTaskPriority(id: string, priority: TaskPriority) {
   const now = new Date().toISOString();
   const nextTasks = state.tasks.map((task) => (task.id === id ? { ...task, priority, updatedAt: now } : task));
   emit({ ...state, tasks: nextTasks });
   const task = nextTasks.find((item) => item.id === id);
   if (task) await updateTask(task, "task.priority.updated", { id, priority });
+}
+
+export async function updateTaskFields(id: string, patch: AgentTaskPatch, eventType = "task.updated") {
+  const current = state.tasks.find((task) => task.id === id);
+  if (!current) return null;
+  const next = await buildPatchedTask(current, patch);
+  emit({
+    ...state,
+    tasks: state.tasks.map((task) => (task.id === id ? next : task)),
+    tags: mergeTags(state.tags, next.tags),
+    recentTaskIds: [id, ...state.recentTaskIds.filter((taskId) => taskId !== id)].slice(0, 10),
+  });
+  await updateTask(next, eventType, { id, patch });
+  return next;
 }
 
 export async function deleteTask(id: string) {
@@ -229,4 +310,96 @@ function createNextRepeatTask(task: Task, now: string): Task | null {
     updatedAt: now,
     completedAt: null,
   };
+}
+
+async function applyTaskUpdates(updates: Array<{ target: AgentTarget; patch: AgentTaskPatch }>, eventType: string) {
+  let updated = 0;
+  for (const update of updates) {
+    const task = resolveTaskTarget(update.target);
+    if (!task) continue;
+    const next = await updateTaskFields(task.id, update.patch, eventType);
+    if (next) updated += 1;
+  }
+  return updated;
+}
+
+async function buildPatchedTask(task: Task, patch: AgentTaskPatch): Promise<Task> {
+  const tags = patch.tags ? await resolveTags(patch.tags) : task.tags;
+  return {
+    ...task,
+    title: patch.title ?? task.title,
+    content: patch.content === undefined ? task.content : patch.content,
+    dueAt: patch.dueAt === undefined ? task.dueAt : patch.dueAt,
+    reminderAt: patch.reminderAt === undefined ? task.reminderAt : patch.reminderAt,
+    priority: patch.priority ?? task.priority,
+    repeatRule: normalizeRepeatRule(patch.repeatRule ?? task.repeatRule),
+    tags,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function resolveTags(tagNames: string[]) {
+  const tags: TaskTag[] = [];
+  for (const name of tagNames) {
+    if (!name.trim()) continue;
+    tags.push(await upsertTag(name.trim()));
+  }
+  return tags;
+}
+
+function resolveTaskTarget(target: AgentTarget): Task | null {
+  const openFirst = [...state.tasks].sort((left, right) => {
+    if (left.status !== right.status) return left.status === "open" ? -1 : 1;
+    return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+  });
+
+  if (target.ordinal) {
+    const recentMatches = state.recentTaskIds
+      .map((id) => state.tasks.find((task) => task.id === id))
+      .filter((task): task is Task => Boolean(task));
+    return recentMatches[target.ordinal - 1] ?? openFirst[target.ordinal - 1] ?? null;
+  }
+
+  if (target.recent) {
+    const recent = state.recentTaskIds
+      .map((id) => state.tasks.find((task) => task.id === id))
+      .find((task): task is Task => Boolean(task));
+    if (recent) return recent;
+  }
+
+  if (target.query?.trim()) {
+    const query = normalizeText(target.query);
+    const scored = state.tasks
+      .map((task) => ({ task, score: scoreTaskMatch(task, query) }))
+      .filter((item) => item.score > 0)
+      .sort((left, right) => right.score - left.score || new Date(right.task.updatedAt).getTime() - new Date(left.task.updatedAt).getTime());
+    return scored[0]?.task ?? null;
+  }
+
+  return openFirst[0] ?? null;
+}
+
+function scoreTaskMatch(task: Task, query: string) {
+  const title = normalizeText(task.title);
+  const content = normalizeText(task.content ?? "");
+  const tags = normalizeText(task.tags.map((tag) => tag.name).join(" "));
+  let score = 0;
+  if (title === query) score += 100;
+  if (title.includes(query)) score += 60;
+  if (query.includes(title) && title.length > 2) score += 35;
+  if (content.includes(query)) score += 20;
+  if (tags.includes(query)) score += 24;
+  if (task.status === "open") score += 8;
+  if (state.recentTaskIds.includes(task.id)) score += 10 - state.recentTaskIds.indexOf(task.id);
+  return score;
+}
+
+function normalizeText(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function normalizeRepeatRule(rule: RepeatRule): RepeatRule {
+  if (rule.type === "daily") return { type: "daily", interval: 1 };
+  if (rule.type === "weekly") return { type: "weekly", interval: 1 };
+  return { type: "none" };
 }

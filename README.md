@@ -6,7 +6,7 @@ todoless is a voice-native task app focused on one core experience: hold a short
 
 ## Current Status
 
-As of 2026-05-09, the repository is a Bun workspace with three apps and one shared package:
+As of 2026-05-10, the repository is a Bun workspace with three apps and one shared package:
 
 | Package | Path | Status | Purpose |
 |---|---|---|---|
@@ -38,6 +38,8 @@ Key capabilities:
 - Soft delete and event logging for future learning.
 - Tags stored in a separate table and linked through `task_tags`.
 - Repeat support for daily and weekly tasks. Completing a repeat task creates the next occurrence and preserves the completed one.
+- Voice command support beyond creation: edit tasks, complete tasks, soft delete tasks, set reminders, and set daily/weekly repeat from natural speech.
+- Desktop reminder cards that surface due reminders in the lower-right corner with Done / Later / dismiss actions.
 - OpenRouter ASR using `openai/whisper-large-v3-turbo` by default.
 - OpenRouter task planning using `deepseek/deepseek-v4-flash` by default.
 - Optional SenseVoice Small model download flow for future local ASR.
@@ -153,9 +155,9 @@ Press shortcut
   -> record audio locally with MediaRecorder
   -> release shortcut
   -> transcribe audio through selected ASR model
-  -> plan tasks through selected text model
-  -> validate structured JSON
-  -> write tasks/tags/events to SQLite
+  -> plan a task command through selected text model
+  -> validate structured JSON command
+  -> create/edit/complete/delete/remind/repeat tasks in SQLite
   -> refresh main window and widget
 ```
 
@@ -168,6 +170,21 @@ Default task planning rules:
 - Repeat is inferred only for simple daily / weekly language.
 - Tags are coarse and AI-generated.
 - `content` stays null unless the speech contains useful execution context.
+
+Voice command examples:
+
+- “明天提醒我写博客” creates a task with a reminder.
+- “刚才那个改成周五” edits the most recent task.
+- “把发推特那个标记完成” completes the matched task.
+- “取消那个任务的提醒” clears `reminderAt`.
+- “这个任务每天重复” sets `repeatRule` to daily.
+
+Reminder rules:
+
+- Desktop reminders appear as todoless cards, not generic task rows.
+- Backfill reminders from the last 24 hours on startup.
+- `Later` snoozes for 15 minutes.
+- `Done` completes the task and keeps repeat behavior intact.
 
 ## Sync Direction
 

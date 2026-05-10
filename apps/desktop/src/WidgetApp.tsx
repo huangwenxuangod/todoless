@@ -9,8 +9,8 @@ import { DropdownMenu } from "./components/ui/DropdownMenu";
 import { useScrollVisibility } from "./hooks/useScrollVisibility";
 import { showToast } from "./stores/toastStore";
 import { initAppSettings } from "./stores/settingsStore";
-import { createTasksFromAgent, hydrateTaskStore, setActiveView, useTaskStore, useVisibleTasks } from "./stores/taskStore";
-import { planTasksFromTranscript, transcribeAudio } from "./services/voiceAgent";
+import { executeAgentCommand, hydrateTaskStore, setActiveView, useTaskStore, useVisibleTasks } from "./stores/taskStore";
+import { planCommandFromTranscript, transcribeAudio } from "./services/voiceAgent";
 import type { SmartView, Task } from "@todoless/shared/types/task";
 
 const widgetViews: Array<{ id: SmartView; label: string; icon: typeof Inbox }> = [
@@ -38,8 +38,16 @@ function WidgetApp() {
     const tasksUpdatedPromise = listen("tasks-updated", () => {
       void hydrateTaskStore();
     });
+    const shortcutPromise = listen("voice-shortcut", () => {
+      void start();
+    });
+    const shortcutReleasePromise = listen("voice-shortcut-release", () => {
+      stop();
+    });
     return () => {
       void tasksUpdatedPromise.then((unlisten) => unlisten());
+      void shortcutPromise.then((unlisten) => unlisten());
+      void shortcutReleasePromise.then((unlisten) => unlisten());
     };
   }, []);
 
@@ -87,12 +95,12 @@ function WidgetApp() {
       const recentTasks = store.recentTaskIds
         .map((id) => store.tasks.find((task) => task.id === id)?.title)
         .filter((title): title is string => Boolean(title));
-      const planned = await planTasksFromTranscript(transcript, recentTasks);
-      const created = await createTasksFromAgent(planned, transcript);
-      await emit("tasks-updated", { count: created.length });
-      showToast(`Created ${created.length} task${created.length > 1 ? "s" : ""}`, "success");
+      const command = await planCommandFromTranscript(transcript, recentTasks);
+      const result = await executeAgentCommand(command, transcript);
+      await emit("tasks-updated", { count: result.count, intent: command.intent });
+      showToast(result.message, "success");
       setState("saved");
-      setMessage(String(created.length));
+      setMessage(String(result.count));
       setTimeout(() => {
         setState("idle");
         setMessage("Add task");

@@ -769,6 +769,111 @@ button {
   color: var(--muted);
 }
 
+/* Reminder cards */
+.reminder-stack {
+  position: fixed;
+  right: 18px;
+  bottom: 92px;
+  z-index: 110;
+  display: grid;
+  gap: 10px;
+  width: min(360px, calc(100vw - 36px));
+  pointer-events: none;
+}
+
+.reminder-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.48);
+  padding: 14px;
+  pointer-events: auto;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+}
+
+.reminder-card:hover {
+  border-color: rgba(184, 169, 154, 0.18);
+}
+
+.reminder-card-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.reminder-card-icon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.reminder-card h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.reminder-card p {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.reminder-icon-button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.reminder-icon-button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.reminder-card-footer {
+  display: flex;
+  gap: 8px;
+}
+
+.reminder-card-footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 0 12px;
+}
+
+.reminder-card-footer button:hover {
+  background: var(--surface-hover);
+}
+
 /* Settings Overlay */
 .settings-overlay {
   position: fixed;

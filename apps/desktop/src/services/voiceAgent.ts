@@ -1,8 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
-import { AgentCreateTasksSchema } from "@todoless/shared/types/agent";
+import { AgentCommandSchema } from "@todoless/shared/types/agent";
 import { createDefaultTodayDueAt } from "@todoless/shared/lib/date";
 import { getAppSettings } from "../stores/settingsStore";
 import type { Task, TaskTag } from "@todoless/shared/types/task";
+import type { AgentCommand } from "@todoless/shared/types/agent";
 
 type TranscribeResponse = {
   text: string;
@@ -13,6 +14,14 @@ type PlanTasksResponse = {
 };
 
 const fallbackTagColor = "#6aa6ff";
+
+export type VoiceCommand =
+  | {
+      intent: "create_tasks";
+      tasks: Array<Omit<Task, "id" | "status" | "createdAt" | "updatedAt" | "completedAt">>;
+      memoryUpdates: unknown[];
+    }
+  | Exclude<AgentCommand, { intent: "create_tasks" }>;
 
 export async function transcribeAudio(blob: Blob) {
   const audioBase64 = await blobToBase64(blob);
@@ -27,7 +36,7 @@ export async function transcribeAudio(blob: Blob) {
   return response.text.trim();
 }
 
-export async function planTasksFromTranscript(transcript: string, recentTasks: string[]) {
+export async function planCommandFromTranscript(transcript: string, recentTasks: string[]): Promise<VoiceCommand> {
   const settings = getAppSettings();
   const response = await invoke<PlanTasksResponse>("plan_tasks", {
     request: {
@@ -39,19 +48,24 @@ export async function planTasksFromTranscript(transcript: string, recentTasks: s
       recentTasks,
     },
   });
-  const parsed = AgentCreateTasksSchema.parse(JSON.parse(response.json));
-  return parsed.tasks.slice(0, 10).map((task): Omit<Task, "id" | "status" | "createdAt" | "updatedAt" | "completedAt"> => {
-    const dueAt = task.dueAt ?? createDefaultTodayDueAt(settings.defaultDueTime);
-    return {
-      title: task.title,
-      content: task.content ?? null,
-      dueAt,
-      reminderAt: task.reminderAt ?? null,
-      priority: task.priority,
-      repeatRule: task.repeatRule ?? { type: "none" },
-      tags: task.tags.map((tag): TaskTag => ({ id: `tag-${slugTag(tag)}`, name: tag, color: fallbackTagColor })),
-    };
-  });
+  const parsed = AgentCommandSchema.parse(JSON.parse(response.json));
+  if (parsed.intent !== "create_tasks") return parsed;
+
+  return {
+    ...parsed,
+    tasks: parsed.tasks.slice(0, 10).map((task): Omit<Task, "id" | "status" | "createdAt" | "updatedAt" | "completedAt"> => {
+      const dueAt = task.dueAt ?? createDefaultTodayDueAt(settings.defaultDueTime);
+      return {
+        title: task.title,
+        content: task.content ?? null,
+        dueAt,
+        reminderAt: task.reminderAt ?? null,
+        priority: task.priority,
+        repeatRule: task.repeatRule ?? { type: "none" },
+        tags: task.tags.map((tag): TaskTag => ({ id: `tag-${slugTag(tag)}`, name: tag, color: fallbackTagColor })),
+      };
+    }),
+  };
 }
 
 function blobToBase64(blob: Blob) {

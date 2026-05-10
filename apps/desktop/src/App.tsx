@@ -5,6 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WindowChrome } from "./components/chrome/WindowChrome";
+import { ReminderCenter } from "./components/reminder/ReminderCenter";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { SyncButton } from "./components/sync/SyncButton";
 import { TaskDetailCard } from "./components/task/TaskDetailCard";
@@ -105,6 +106,7 @@ function App() {
       </main>
 
       <ToastContainer />
+      <ReminderCenter onOpenTask={setDetailTaskId} />
 
       {settingsOpen ? <SettingsModal onClose={() => setSettingsOpen(false)} /> : null}
 

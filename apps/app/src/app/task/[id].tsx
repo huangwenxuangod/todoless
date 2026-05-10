@@ -1,9 +1,11 @@
 import { useLocalSearchParams, Stack, router } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   Alert,
 } from "react-native";
@@ -31,6 +33,15 @@ export default function TaskDetailScreen() {
   const task = useTaskStore((s) => s.tasks.find((t) => t.id === id));
   const toggleTask = useTaskStore((s) => s.toggleTask);
   const removeTask = useTaskStore((s) => s.removeTask);
+  const updateTaskFields = useTaskStore((s) => s.updateTaskFields);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftContent, setDraftContent] = useState("");
+
+  useEffect(() => {
+    if (!task) return;
+    setDraftTitle(task.title);
+    setDraftContent(task.content ?? "");
+  }, [task?.id]);
 
   if (!task) {
     return (
@@ -68,29 +79,35 @@ export default function TaskDetailScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Priority */}
         <View style={styles.row}>
-          <View
-            style={[
-              styles.priorityBadge,
-              { backgroundColor: priorityColors[task.priority] + "20" },
-            ]}
-          >
-            <View
+          {[0, 1, 2, 3].map((priority) => (
+            <Pressable
+              key={priority}
+              onPress={() => updateTaskFields(task.id, { priority: priority as 0 | 1 | 2 | 3 })}
               style={[
-                styles.priorityDot,
-                { backgroundColor: priorityColors[task.priority] },
-              ]}
-            />
-            <Text
-              style={[
-                styles.priorityText,
-                { color: priorityColors[task.priority] },
+                styles.priorityBadge,
+                {
+                  backgroundColor: priorityColors[priority] + "20",
+                  opacity: task.priority === priority ? 1 : 0.46,
+                },
               ]}
             >
-              {priorityLabels[task.priority]}
-            </Text>
-          </View>
+              <View
+                style={[
+                  styles.priorityDot,
+                  { backgroundColor: priorityColors[priority] },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.priorityText,
+                  { color: priorityColors[priority] },
+                ]}
+              >
+                {priorityLabels[priority]}
+              </Text>
+            </Pressable>
+          ))}
 
           <Pressable
             onPress={() => toggleTask(task.id)}
@@ -112,13 +129,25 @@ export default function TaskDetailScreen() {
           </Pressable>
         </View>
 
-        {/* Title */}
-        <Text style={styles.title}>{task.title}</Text>
+        <TextInput
+          multiline
+          onBlur={() => updateTaskFields(task.id, { title: draftTitle.trim() || task.title })}
+          onChangeText={setDraftTitle}
+          placeholder="Task title"
+          placeholderTextColor={colors.faint}
+          style={styles.titleInput}
+          value={draftTitle}
+        />
 
-        {/* Content */}
-        {task.content && (
-          <Text style={styles.contentText}>{task.content}</Text>
-        )}
+        <TextInput
+          multiline
+          onBlur={() => updateTaskFields(task.id, { content: draftContent.trim() ? draftContent : null })}
+          onChangeText={setDraftContent}
+          placeholder="Add details"
+          placeholderTextColor={colors.faint}
+          style={styles.contentInput}
+          value={draftContent}
+        />
 
         {/* Meta */}
         <View style={styles.meta}>
@@ -140,6 +169,48 @@ export default function TaskDetailScreen() {
           )}
         </View>
 
+        <View style={styles.quickSection}>
+          <Text style={styles.sectionTitle}>Reminder</Text>
+          <View style={styles.quickGrid}>
+            <Pressable
+              style={styles.quickButton}
+              onPress={() => updateTaskFields(task.id, { reminderAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() })}
+            >
+              <Text style={styles.quickText}>Later 15m</Text>
+            </Pressable>
+            <Pressable
+              style={styles.quickButton}
+              onPress={() => updateTaskFields(task.id, { reminderAt: tomorrowAt(9).toISOString() })}
+            >
+              <Text style={styles.quickText}>Tomorrow 9 AM</Text>
+            </Pressable>
+            <Pressable
+              style={styles.quickButton}
+              onPress={() => updateTaskFields(task.id, { reminderAt: null })}
+            >
+              <Text style={styles.quickText}>Clear</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.quickSection}>
+          <Text style={styles.sectionTitle}>Repeat</Text>
+          <View style={styles.quickGrid}>
+            <Pressable
+              style={[styles.quickButton, task.repeatRule.type === "daily" && styles.quickButtonActive]}
+              onPress={() => updateTaskFields(task.id, { repeatRule: { type: "daily", interval: 1 } })}
+            >
+              <Text style={styles.quickText}>Daily</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.quickButton, task.repeatRule.type === "weekly" && styles.quickButtonActive]}
+              onPress={() => updateTaskFields(task.id, { repeatRule: { type: "weekly", interval: 1 } })}
+            >
+              <Text style={styles.quickText}>Weekly</Text>
+            </Pressable>
+          </View>
+        </View>
+
         {/* Tags */}
         {task.tags.length > 0 && (
           <View style={styles.tags}>
@@ -153,6 +224,13 @@ export default function TaskDetailScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function tomorrowAt(hour: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  date.setHours(hour, 0, 0, 0);
+  return date;
 }
 
 const styles = StyleSheet.create({
@@ -202,16 +280,24 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: radii.sm,
   },
-  title: {
+  titleInput: {
     fontSize: 22,
     fontWeight: "600",
     color: colors.text,
     lineHeight: 30,
+    padding: 0,
   },
-  contentText: {
+  contentInput: {
+    minHeight: 82,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: "rgba(245, 240, 232, 0.06)",
+    padding: spacing.md,
     fontSize: 15,
     color: colors.muted,
     lineHeight: 22,
+    textAlignVertical: "top",
   },
   meta: {
     gap: spacing.sm,
@@ -246,5 +332,37 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 13,
     color: colors.muted,
+  },
+  quickSection: {
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    color: colors.faint,
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  quickGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  quickButton: {
+    minHeight: 38,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: "rgba(245, 240, 232, 0.08)",
+    justifyContent: "center",
+  },
+  quickButtonActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent + "22",
+  },
+  quickText: {
+    color: colors.text,
+    fontWeight: "700",
   },
 });

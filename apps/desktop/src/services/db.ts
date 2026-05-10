@@ -169,6 +169,12 @@ export async function updateTask(task: Task, eventType = "task.updated", payload
       task.id,
     ],
   );
+  await db.execute("DELETE FROM task_tags WHERE task_id = $1", [task.id]);
+  for (const tag of task.tags) {
+    const storedTag = await upsertTag(tag.name, tag.color, tag.id);
+    await db.execute("INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES ($1, $2)", [task.id, storedTag.id]);
+  }
+  await pushRecentContext(task.id, task.title);
   await recordEvent(eventType, payload);
 }
 

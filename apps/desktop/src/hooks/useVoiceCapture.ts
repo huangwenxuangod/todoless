@@ -1,8 +1,8 @@
 import { useCallback, useRef, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
-import { createTasksFromAgent, getSnapshot } from "../stores/taskStore";
+import { executeAgentCommand, getSnapshot } from "../stores/taskStore";
 import { showToast } from "../stores/toastStore";
-import { planTasksFromTranscript, transcribeAudio } from "../services/voiceAgent";
+import { planCommandFromTranscript, transcribeAudio } from "../services/voiceAgent";
 
 export type VoiceState = "idle" | "recording" | "transcribing" | "planning" | "saved" | "error";
 
@@ -25,12 +25,12 @@ export function useVoiceCapture() {
       const recentTasks = store.recentTaskIds
         .map((id) => store.tasks.find((task) => task.id === id)?.title)
         .filter((title): title is string => Boolean(title));
-      const plannedTasks = await planTasksFromTranscript(transcript, recentTasks);
-      const created = await createTasksFromAgent(plannedTasks, transcript);
-      await emit("tasks-updated", { count: created.length });
+      const command = await planCommandFromTranscript(transcript, recentTasks);
+      const result = await executeAgentCommand(command, transcript);
+      await emit("tasks-updated", { count: result.count, intent: command.intent });
       setVoiceState("saved");
-      setVoiceMessage(`Created ${created.length} task${created.length > 1 ? "s" : ""}`);
-      showToast(`Created ${created.length} task${created.length > 1 ? "s" : ""}`, "success");
+      setVoiceMessage(result.message);
+      showToast(result.message, "success");
       window.setTimeout(() => {
         setVoiceState("idle");
         setVoiceMessage("Ctrl Shift Space");

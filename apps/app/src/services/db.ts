@@ -134,6 +134,39 @@ export async function updateTaskStatus(id: string, status: "open" | "done") {
   );
 }
 
+export async function updateTask(task: Task) {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE tasks
+      SET title = ?, content = ?, status = ?, due_at = ?, reminder_at = ?, priority = ?, repeat_rule = ?, updated_at = ?, completed_at = ?
+      WHERE id = ?`,
+    [
+      task.title,
+      task.content,
+      task.status,
+      task.dueAt,
+      task.reminderAt,
+      task.priority,
+      serializeRepeatRule(task.repeatRule),
+      task.updatedAt,
+      task.completedAt,
+      task.id,
+    ]
+  );
+
+  await db.runAsync("DELETE FROM task_tags WHERE task_id = ?", [task.id]);
+  for (const tag of task.tags) {
+    await db.runAsync(
+      "INSERT OR IGNORE INTO tags (id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+      [tag.id, tag.name, tag.color, task.createdAt, task.updatedAt]
+    );
+    await db.runAsync(
+      "INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)",
+      [task.id, tag.id]
+    );
+  }
+}
+
 export async function deleteTask(id: string) {
   const db = await getDb();
   const now = new Date().toISOString();

@@ -12,7 +12,7 @@ import { colors, radii, spacing } from "../constants/theme";
 import { useTaskStore } from "../stores/taskStore";
 import {
   transcribeAudio,
-  planTasksFromTranscript,
+  planCommandFromTranscript,
 } from "../services/voiceAgent";
 
 type VoiceState = "idle" | "recording" | "thinking" | "done" | "error";
@@ -21,7 +21,7 @@ export function VoiceButton() {
   const [state, setState] = useState<VoiceState>("idle");
   const [message, setMessage] = useState("Hold to speak");
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const addTasksFromAgent = useTaskStore((s) => s.addTasksFromAgent);
+  const executeAgentCommand = useTaskStore((s) => s.executeAgentCommand);
 
   const startRecording = useCallback(async () => {
     try {
@@ -87,11 +87,11 @@ export function VoiceButton() {
         .getState()
         .tasks.slice(0, 10)
         .map((t) => t.title);
-      const planned = await planTasksFromTranscript(transcript, recentTasks);
-      await addTasksFromAgent(planned);
+      const command = await planCommandFromTranscript(transcript, recentTasks);
+      const result = await executeAgentCommand(command, transcript);
 
       setState("done");
-      setMessage(`Created ${planned.length} task${planned.length > 1 ? "s" : ""}`);
+      setMessage(result.message);
       setTimeout(() => {
         setState("idle");
         setMessage("Hold to speak");
@@ -105,7 +105,7 @@ export function VoiceButton() {
         setMessage("Hold to speak");
       }, 3000);
     }
-  }, [addTasksFromAgent]);
+  }, [executeAgentCommand]);
 
   return (
     <View style={styles.wrapper}>
