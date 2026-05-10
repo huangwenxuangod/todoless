@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronDown, MoreHorizontal } from "lucide-react-native";
+import { Calendar1, CalendarDays, ChevronDown, Inbox, MoreHorizontal, Tag } from "lucide-react-native";
 import { taskBelongsToView, taskMatchesView } from "@todoless/shared/lib/date";
 import type { SmartView, Task } from "@todoless/shared/types/task";
 import { useTaskStore } from "../../stores/taskStore";
@@ -11,12 +11,12 @@ import { VoiceButton } from "../../components/VoiceButton";
 import { colors, radii, spacing } from "../../constants/theme";
 import { router } from "expo-router";
 
-const views: Array<{ key: SmartView; label: string }> = [
-  { key: "today", label: "Today" },
-  { key: "tomorrow", label: "Tomorrow" },
-  { key: "next7", label: "Next 7 Days" },
-  { key: "inbox", label: "Inbox" },
-  { key: "all", label: "Tags" },
+const views: Array<{ key: SmartView; label: string; icon: typeof Calendar1 }> = [
+  { key: "today", label: "Today", icon: Calendar1 },
+  { key: "tomorrow", label: "Tomorrow", icon: Calendar1 },
+  { key: "next7", label: "Next 7 Days", icon: CalendarDays },
+  { key: "inbox", label: "Inbox", icon: Inbox },
+  { key: "all", label: "Tags", icon: Tag },
 ];
 
 function taskInView(task: Task, view: SmartView) {
@@ -53,6 +53,7 @@ export default function TasksScreen() {
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <Pressable style={styles.titleButton} onPress={() => setMenuOpen(true)}>
+          <Calendar1 size={24} color={colors.faint} />
           <Text style={styles.title}>{activeLabel}</Text>
           <ChevronDown size={18} color={colors.muted} />
         </Pressable>
@@ -84,8 +85,11 @@ export default function TasksScreen() {
           ListFooterComponent={
             doneTasks.length > 0 ? (
               <Pressable style={styles.completedRow}>
-                <Text style={styles.completedText}>COMPLETED</Text>
-                <Text style={styles.completedCount}>{doneTasks.length}</Text>
+                <View style={styles.completedLabel}>
+                  <Text style={styles.completedText}>COMPLETED</Text>
+                  <Text style={styles.completedCount}>{doneTasks.length}</Text>
+                </View>
+                <Text style={styles.completedArrow}>›</Text>
               </Pressable>
             ) : null
           }
@@ -109,6 +113,10 @@ export default function TasksScreen() {
                   setMenuOpen(false);
                 }}
               >
+                <view.icon
+                  size={17}
+                  color={activeView === view.key ? colors.text : colors.faint}
+                />
                 <Text
                   style={[
                     styles.menuText,
@@ -136,8 +144,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
   },
   titleButton: {
     flexDirection: "row",
@@ -145,8 +153,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700",
+    fontSize: 30,
+    fontWeight: "800",
     color: colors.text,
   },
   iconButton: {
@@ -163,16 +171,25 @@ const styles = StyleSheet.create({
   },
   panel: {
     flex: 1,
-    marginHorizontal: spacing.md,
+    marginHorizontal: spacing.sm,
     backgroundColor: colors.panel,
-    borderRadius: 18,
+    borderRadius: 20,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(245, 240, 232, 0.06)",
   },
   completedRow: {
     marginTop: spacing.md,
-    paddingVertical: spacing.lg,
+    minHeight: 58,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(245, 240, 232, 0.06)",
+  },
+  completedLabel: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
@@ -188,10 +205,15 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontWeight: "700",
   },
+  completedArrow: {
+    color: colors.faint,
+    fontSize: 28,
+    lineHeight: 28,
+  },
   list: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: 120,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: 126,
   },
   empty: {
     paddingVertical: 60,
@@ -210,12 +232,15 @@ const styles = StyleSheet.create({
   menu: {
     width: 220,
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(245, 240, 232, 0.08)",
     padding: spacing.xs,
   },
   menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     borderRadius: radii.md,

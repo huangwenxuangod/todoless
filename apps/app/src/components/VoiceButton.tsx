@@ -7,7 +7,7 @@ import {
   Alert,
 } from "react-native";
 import { Audio } from "expo-av";
-import { Mic } from "lucide-react-native";
+import { Mic, X } from "lucide-react-native";
 import { colors, radii, spacing } from "../constants/theme";
 import { useTaskStore } from "../stores/taskStore";
 import {
@@ -111,7 +111,14 @@ export function VoiceButton() {
     <View style={styles.wrapper}>
       {state !== "idle" && (
         <View style={[styles.strip, state === "error" && styles.stripError]}>
+          {state === "recording" ? <View style={styles.recordingDot} /> : null}
           <Text style={styles.hint}>{message}</Text>
+          {state === "recording" ? (
+            <View style={styles.cancelHint}>
+              <X size={12} color={colors.faint} />
+              <Text style={styles.cancelText}>release to send</Text>
+            </View>
+          ) : null}
         </View>
       )}
       <Pressable
@@ -135,19 +142,21 @@ const styles = StyleSheet.create({
     right: spacing.lg,
     bottom: spacing.xl + 64,
     alignItems: "center",
-    gap: spacing.sm,
+    gap: spacing.md,
     zIndex: 20,
   },
   strip: {
-    minWidth: 156,
-    minHeight: 40,
+    minWidth: 190,
+    minHeight: 42,
     paddingHorizontal: spacing.md,
     borderRadius: radii.full,
-    backgroundColor: colors.surface,
+    backgroundColor: "rgba(26, 25, 23, 0.96)",
     borderWidth: 1,
     borderColor: "rgba(245, 240, 232, 0.08)",
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
   },
   stripError: {
     borderColor: colors.error,
@@ -155,17 +164,38 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 13,
     color: colors.text,
+    fontWeight: "700",
+  },
+  recordingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: radii.full,
+    backgroundColor: colors.error,
+  },
+  cancelHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  cancelText: {
+    color: colors.faint,
+    fontSize: 11,
     fontWeight: "600",
   },
   button: {
-    width: 64,
-    height: 64,
+    width: 66,
+    height: 66,
     borderRadius: radii.full,
     backgroundColor: "#2f365f",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(245, 240, 232, 0.12)",
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   recording: {
     backgroundColor: colors.accent,

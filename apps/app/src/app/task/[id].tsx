@@ -10,7 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Trash2 } from "lucide-react-native";
+import { Bell, Calendar, Repeat2, Trash2, X } from "lucide-react-native";
 import { useTaskStore } from "../../stores/taskStore";
 import { colors, spacing, radii } from "../../constants/theme";
 
@@ -66,19 +66,34 @@ export default function TaskDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <Stack.Screen
         options={{
-          title: "Task",
-          headerRight: () => (
-            <Pressable onPress={handleDelete} style={styles.headerBtn}>
-              <Trash2 size={20} color={colors.error} />
-            </Pressable>
-          ),
+          headerShown: false,
         }}
       />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.sheet}>
+        <View style={styles.sheetHeader}>
+          <Pressable
+            onPress={() => toggleTask(task.id)}
+            style={[styles.headerCircle, { borderColor: priorityColors[task.priority] }]}
+          />
+          <View style={styles.headerMeta}>
+            <Calendar size={14} color={colors.faint} />
+            <Text style={styles.headerMetaText}>
+              {task.dueAt ? new Date(task.dueAt).toLocaleString() : "Inbox"}
+            </Text>
+          </View>
+          <Pressable onPress={handleDelete} style={styles.headerBtn}>
+            <Trash2 size={18} color={colors.error} />
+          </Pressable>
+          <Pressable onPress={() => router.back()} style={styles.headerBtn}>
+            <X size={20} color={colors.faint} />
+          </Pressable>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.row}>
           {[0, 1, 2, 3].map((priority) => (
             <Pressable
@@ -170,7 +185,10 @@ export default function TaskDetailScreen() {
         </View>
 
         <View style={styles.quickSection}>
-          <Text style={styles.sectionTitle}>Reminder</Text>
+          <View style={styles.sectionTitleRow}>
+            <Bell size={14} color={colors.faint} />
+            <Text style={styles.sectionTitle}>Reminder</Text>
+          </View>
           <View style={styles.quickGrid}>
             <Pressable
               style={styles.quickButton}
@@ -194,7 +212,10 @@ export default function TaskDetailScreen() {
         </View>
 
         <View style={styles.quickSection}>
-          <Text style={styles.sectionTitle}>Repeat</Text>
+          <View style={styles.sectionTitleRow}>
+            <Repeat2 size={14} color={colors.faint} />
+            <Text style={styles.sectionTitle}>Repeat</Text>
+          </View>
           <View style={styles.quickGrid}>
             <Pressable
               style={[styles.quickButton, task.repeatRule.type === "daily" && styles.quickButtonActive]}
@@ -221,7 +242,8 @@ export default function TaskDetailScreen() {
             ))}
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -237,6 +259,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+    padding: spacing.md,
   },
   center: {
     justifyContent: "center",
@@ -247,7 +270,45 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   headerBtn: {
-    padding: spacing.sm,
+    width: 34,
+    height: 34,
+    borderRadius: radii.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
+  sheet: {
+    flex: 1,
+    borderRadius: 24,
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: "rgba(245, 240, 232, 0.08)",
+    overflow: "hidden",
+  },
+  sheetHeader: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(245, 240, 232, 0.06)",
+  },
+  headerCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: radii.full,
+    borderWidth: 2,
+  },
+  headerMeta: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  headerMetaText: {
+    color: colors.muted,
+    fontSize: 13,
   },
   content: {
     padding: spacing.lg,
@@ -264,7 +325,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
-    borderRadius: radii.sm,
+    borderRadius: radii.full,
   },
   priorityDot: {
     width: 8,
@@ -286,6 +347,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 30,
     padding: 0,
+    minHeight: 42,
   },
   contentInput: {
     minHeight: 82,
@@ -335,6 +397,11 @@ const styles = StyleSheet.create({
   },
   quickSection: {
     gap: spacing.sm,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   sectionTitle: {
     color: colors.faint,
