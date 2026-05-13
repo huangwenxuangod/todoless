@@ -357,13 +357,21 @@ function VoicePane() {
         </div>
         <div className="model-compact-row">
           <div>
-            <strong>DeepSeek V4 Flash</strong>
+            <strong>{labelForTextModel(settings.textModel)}</strong>
             <small>OpenRouter · Creates structured tasks</small>
           </div>
         </div>
       </section>
     </section>
   );
+}
+
+function labelForTextModel(model: string) {
+  if (model === "moonshotai/kimi-k2.6" || model === "~moonshotai/kimi-latest") return "Kimi K2.6";
+  if (model === "qwen/qwen3.6-flash") return "Qwen3.6 Flash";
+  if (model === "deepseek/deepseek-v4-flash") return "DeepSeek V4 Flash";
+  if (model === "local/default") return "Local Default";
+  return model;
 }
 
 function AccountPane() {

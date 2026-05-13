@@ -43,6 +43,19 @@ struct PlanTasksResponse {
     json: String,
 }
 
+enum OpenRouterPlanError {
+    Retryable(String),
+    Fatal(String),
+}
+
+impl OpenRouterPlanError {
+    fn message(self) -> String {
+        match self {
+            OpenRouterPlanError::Retryable(message) | OpenRouterPlanError::Fatal(message) => message,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct GroqTranscription {
     text: String,
@@ -312,7 +325,7 @@ async fn plan_tasks(request: PlanTasksRequest) -> Result<PlanTasksResponse, Stri
         .model
         .filter(|value| value != "local/default")
         .or_else(|| std::env::var("OPENROUTER_TEXT_MODEL").ok())
-        .unwrap_or_else(|| "deepseek/deepseek-v4-flash".to_string());
+        .unwrap_or_else(|| "moonshotai/kimi-k2.6".to_string());
     let system = r#"You are todoless, a non-chat voice-to-task command agent.
 Return only valid JSON. No markdown. No explanation.
 The user is the commander. Convert the transcript into one command and execute their intent without asking questions.
@@ -357,43 +370,191 @@ Output one of these schemas:
         request.transcript
     );
 
-    let body = serde_json::json!({
-        "model": model,
-        "response_format": { "type": "json_object" },
-        "messages": [
-            { "role": "system", "content": system },
-            { "role": "user", "content": user }
-        ],
-        "temperature": 0.1
-    });
-
-    let response = reqwest::Client::new()
-        .post("https://openrouter.ai/api/v1/chat/completions")
-        .bearer_auth(api_key)
-        .header("HTTP-Referer", "https://todoless.app")
-        .header("X-Title", "todoless")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|error| format!("OpenRouter request failed: {error}"))?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return Err(format!("OpenRouter returned {status}: {body}"));
+    let mut attempts = vec![(model.clone(), supports_json_mode(&model))];
+    for fallback_model in fallback_text_models() {
+        if !attempts.iter().any(|(candidate, _)| candidate == &fallback_model) {
+            attempts.push((fallback_model.clone(), supports_json_mode(&fallback_model)));
+        }
     }
+
+    let mut errors = Vec::new();
+    for (candidate_model, use_json_mode) in attempts {
+        eprintln!(
+            "[todoless][plan_tasks] trying model={} json_mode={}",
+            candidate_model, use_json_mode
+        );
+        match request_plan_model(&api_key, &candidate_model, system, &user, use_json_mode).await {
+            Ok(json) => {
+                eprintln!("[todoless][plan_tasks] success model={}", candidate_model);
+                return Ok(PlanTasksResponse { json });
+            }
+            Err(OpenRouterPlanError::Retryable(message)) => {
+                eprintln!("[todoless][plan_tasks] retryable {}", message);
+                errors.push(message)
+            }
+            Err(error @ OpenRouterPlanError::Fatal(_)) => return Err(error.message()),
+        }
+    }
+
+    eprintln!("[todoless][plan_tasks] exhausted fallbacks");
+    Err(format!("OpenRouter planning failed after fallback attempts: {}", errors.join(" | ")))
+}
+
+async fn request_plan_model(
+    api_key: &str,
+    model: &str,
+    system: &str,
+    user: &str,
+    use_json_mode: bool,
+) -> Result<String, OpenRouterPlanError> {
+    let max_attempts = 2;
+    let mut last_retryable = None;
+
+    for attempt in 1..=max_attempts {
+        let mut body = serde_json::json!({
+            "model": model,
+            "messages": [
+                { "role": "system", "content": system },
+                { "role": "user", "content": user }
+            ],
+            "temperature": 0.1
+        });
+        if use_json_mode {
+            body["response_format"] = serde_json::json!({ "type": "json_object" });
+        }
+
+        let response = reqwest::Client::new()
+            .post("https://openrouter.ai/api/v1/chat/completions")
+            .bearer_auth(api_key.to_string())
+            .header("HTTP-Referer", "https://todoless.app")
+            .header("X-Title", "todoless")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|error| OpenRouterPlanError::Retryable(format!("OpenRouter request failed for {model} (attempt {attempt}/{max_attempts}): {error}")))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            let message = format!("OpenRouter returned {status} for {model} (attempt {attempt}/{max_attempts}): {body}");
+            if status.is_server_error()
+                || status == reqwest::StatusCode::BAD_REQUEST
+                || status == reqwest::StatusCode::FORBIDDEN
+                || status == reqwest::StatusCode::NOT_FOUND
+                || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+            {
+                last_retryable = Some(message);
+                continue;
+            }
+            return Err(OpenRouterPlanError::Fatal(message));
+        }
 
     let parsed = response
         .json::<serde_json::Value>()
         .await
-        .map_err(|error| format!("OpenRouter response parse failed: {error}"))?;
+        .map_err(|error| OpenRouterPlanError::Retryable(format!("OpenRouter response parse failed for {model} (attempt {attempt}/{max_attempts}): {error}")))?;
     let content = parsed["choices"][0]["message"]["content"]
         .as_str()
-        .ok_or_else(|| "OpenRouter returned an empty response".to_string())?;
+        .ok_or_else(|| OpenRouterPlanError::Retryable(format!("OpenRouter returned an empty response for {model} (attempt {attempt}/{max_attempts})")))?;
+        let json = extract_json_content(content);
+        validate_planned_command(&json, model, attempt, max_attempts)?;
+        return Ok(json);
+    }
 
-    Ok(PlanTasksResponse {
-        json: content.to_string(),
-    })
+    Err(OpenRouterPlanError::Retryable(
+        last_retryable.unwrap_or_else(|| format!("OpenRouter planning exhausted retries for {model}")),
+    ))
+}
+
+fn extract_json_content(content: &str) -> String {
+    let trimmed = content.trim();
+    if trimmed.starts_with("```") {
+        let without_opening = trimmed
+            .strip_prefix("```json")
+            .or_else(|| trimmed.strip_prefix("```"))
+            .unwrap_or(trimmed)
+            .trim();
+        return without_opening.strip_suffix("```").unwrap_or(without_opening).trim().to_string();
+    }
+    if !trimmed.starts_with('{') {
+        if let (Some(start), Some(end)) = (trimmed.find('{'), trimmed.rfind('}')) {
+            if start < end {
+                return trimmed[start..=end].to_string();
+            }
+        }
+    }
+    trimmed.to_string()
+}
+
+fn validate_planned_command(
+    json: &str,
+    model: &str,
+    attempt: usize,
+    max_attempts: usize,
+) -> Result<(), OpenRouterPlanError> {
+    let parsed: serde_json::Value = serde_json::from_str(json).map_err(|error| {
+        OpenRouterPlanError::Retryable(format!(
+            "Planner returned non-JSON content for {model} (attempt {attempt}/{max_attempts}): {error}"
+        ))
+    })?;
+
+    let Some(intent) = parsed.get("intent").and_then(|value| value.as_str()) else {
+        return Err(OpenRouterPlanError::Retryable(format!(
+            "Planner response missing intent for {model} (attempt {attempt}/{max_attempts})"
+        )));
+    };
+
+    let array_field = match intent {
+        "create_tasks" => Some(("tasks", "task")),
+        "update_tasks" | "set_reminders" | "set_repeat" => Some(("updates", "update")),
+        "complete_tasks" | "delete_tasks" => Some(("targets", "target")),
+        _ => None,
+    };
+
+    if let Some((field, item_label)) = array_field {
+        let items = parsed
+            .get(field)
+            .and_then(|value| value.as_array())
+            .ok_or_else(|| {
+                OpenRouterPlanError::Retryable(format!(
+                    "Planner response missing {field} array for {model} (attempt {attempt}/{max_attempts})"
+                ))
+            })?;
+
+        if items.is_empty() {
+            return Err(OpenRouterPlanError::Retryable(format!(
+                "Planner returned empty {field} for {model} (attempt {attempt}/{max_attempts}); no actionable {item_label} found"
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+fn supports_json_mode(model: &str) -> bool {
+    !model.starts_with("qwen/") && !model.starts_with("moonshotai/") && !model.starts_with("~moonshotai/")
+}
+
+fn fallback_text_models() -> Vec<String> {
+    if let Ok(models) = std::env::var("OPENROUTER_TEXT_FALLBACK_MODELS") {
+        let parsed: Vec<String> = models
+            .split(',')
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+            .map(|value| value.to_string())
+            .collect();
+        if !parsed.is_empty() {
+            return parsed;
+        }
+    }
+
+    if let Ok(model) = std::env::var("OPENROUTER_TEXT_FALLBACK_MODEL") {
+        if !model.trim().is_empty() {
+            return vec![model];
+        }
+    }
+
+    vec!["qwen/qwen3.6-flash".to_string(), "deepseek/deepseek-v4-flash".to_string()]
 }
 
 #[tauri::command]

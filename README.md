@@ -6,12 +6,12 @@ todoless is a voice-native task app focused on one core experience: hold a short
 
 ## Current Status
 
-As of 2026-05-10, the repository is a Bun workspace with three apps and one shared package:
+As of 2026-05-13, the repository is a Bun workspace with three apps and one shared package:
 
 | Package | Path | Status | Purpose |
 |---|---|---|---|
 | Desktop | `apps/desktop` | Active MVP | Tauri Windows app with main window, widget, SQLite, voice pipeline, settings |
-| Mobile | `apps/app` | Early implementation | Expo SDK 54 app for mobile task viewing/capture |
+| Mobile | `apps/app` | Early implementation | Expo SDK 54 app with local tasks, voice capture, reminders, and sync service scaffolding |
 | Web | `apps/web` | Active landing app | Next.js marketing site, demo, pricing, download, waitlist |
 | Shared | `packages/shared` | Active | Shared task types, date/id helpers, design tokens |
 
@@ -41,7 +41,7 @@ Key capabilities:
 - Voice command support beyond creation: edit tasks, complete tasks, soft delete tasks, set reminders, and set daily/weekly repeat from natural speech.
 - Desktop reminder cards that surface due reminders in the lower-right corner with Done / Later / dismiss actions.
 - OpenRouter ASR using `openai/whisper-large-v3-turbo` by default.
-- OpenRouter task planning using `deepseek/deepseek-v4-flash` by default.
+- OpenRouter task planning using `moonshotai/kimi-k2.6` by default, with `qwen/qwen3.6-flash` and `deepseek/deepseek-v4-flash` as fallbacks.
 - Optional SenseVoice Small model download flow for future local ASR.
 - Settings for theme, always-on-top behavior, shortcut, close behavior, remote/local voice model.
 
@@ -68,7 +68,8 @@ Create `apps/desktop/.env.local`:
 ```env
 OPENROUTER_API_KEY=sk-or-v1-...
 OPENROUTER_ASR_MODEL=openai/whisper-large-v3-turbo
-OPENROUTER_TEXT_MODEL=deepseek/deepseek-v4-flash
+OPENROUTER_TEXT_MODEL=moonshotai/kimi-k2.6
+OPENROUTER_TEXT_FALLBACK_MODELS=qwen/qwen3.6-flash,deepseek/deepseek-v4-flash
 ```
 
 Only `OPENROUTER_API_KEY` is required. Model values have defaults.
@@ -84,7 +85,8 @@ Current intent:
 - Shared task model with desktop.
 - Voice-first mobile capture that inherits the desktop philosophy: one primary mic action, task list second, typing as fallback.
 - Future sync can be added without changing the task domain model.
-- Supabase sync migration and service skeletons are in place; the product surface should stay as a small sync icon, not a complex account panel.
+- Supabase sync migration and service helpers are in place on desktop and mobile; the visible product surface is still only a small sync icon, not a complex account panel.
+- Mobile reminder notifications are implemented with Expo Notifications, including Done / Later notification actions and a 64-reminder scheduling cap.
 
 Mobile product decisions:
 
@@ -103,6 +105,7 @@ Current engineering notes:
 - `postinstall` runs `scripts/patch-react-native-bun.mjs` to patch missing React Native files in Bun's `.bun` package mirror on Windows.
 - Android production export has been verified after the Expo 54 migration.
 - Avoid runtime use of `react-native-reanimated` / worklets until the native runtime is explicitly configured; current mobile interactions use plain React Native primitives.
+- Mobile voice capture currently calls OpenRouter directly from Expo code through `EXPO_PUBLIC_OPENROUTER_API_KEY`; this is useful for early testing but should move behind secure storage or a backend before public release.
 
 Run:
 
@@ -117,6 +120,16 @@ cd apps/app
 node node_modules/expo/bin/cli start --offline --clear
 ```
 
+Mobile environment:
+
+```env
+EXPO_PUBLIC_OPENROUTER_API_KEY=sk-or-v1-...
+EXPO_PUBLIC_SUPABASE_URL=https://...
+EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Only `EXPO_PUBLIC_OPENROUTER_API_KEY` is required for mobile voice capture. Supabase values only enable the sync helpers; account UI and automatic product sync are not wired into the task surface yet.
+
 ## Web App
 
 The web app lives in `apps/web` and is the public product surface.
@@ -128,6 +141,14 @@ Current pages:
 - `/pricing`
 - `/download`
 - `/api/waitlist`
+
+Web environment:
+
+```env
+RESEND_API_KEY=re_...
+```
+
+The waitlist route sends a confirmation email through Resend when this key is configured.
 
 Run:
 
@@ -144,7 +165,7 @@ bun run build:web
 - Date helpers for Today / Tomorrow / Next 7 Days / Inbox.
 - ID helpers.
 - Design tokens.
-- Placeholder sync protocol exports.
+- Sync protocol row and payload types for Supabase-backed task/tag/task-tag exchange.
 
 Use shared code for cross-platform behavior whenever possible. Avoid duplicating task filtering or schema logic separately in desktop and mobile.
 
@@ -165,7 +186,8 @@ Default task planning rules:
 
 - Maximum 10 tasks per voice input.
 - If no date/time is mentioned, default due date is today at the hidden default due time, currently `22:00`.
-- If a date is mentioned without time, due time uses the default due time and reminder defaults to `09:00`.
+- If a date is mentioned without time, due time uses the default due time and reminder stays null unless the transcript explicitly asks for a reminder.
+- If the user asks for a reminder without a specific time, same-day vague reminders default to `20:00`; future-day vague reminders default to `09:00`.
 - Priority is inferred from urgency, consequence, and wording.
 - Repeat is inferred only for simple daily / weekly language.
 - Tags are coarse and AI-generated.
@@ -199,7 +221,7 @@ Current decisions:
 - Supabase Auth with email magic link.
 - Local use remains available before login.
 - After login, local tasks should upload to the cloud.
-- Background sync is automatic once signed in.
+- Background sync is the intended behavior once signed in, but the current product UI only exposes a small sync status/action icon.
 - The visible sync surface is just an icon in the task header.
 - Conflict resolution is Last Write Wins using `updated_at`.
 - Deletes are soft deletes through `deleted_at`.
@@ -228,7 +250,7 @@ Root scripts delegate into the relevant workspace package.
 - Desktop is the source of truth for the MVP experience.
 - Mobile is present but still early and should stay simple.
 - Local SenseVoice download is implemented as model management, but full local ASR execution still depends on the sidecar integration.
-- Cloud sync is intentionally out of MVP scope.
+- Cloud sync has schema and service scaffolding, but complete sign-in, upload/pull orchestration, and conflict UX remain outside the current MVP surface.
 - Settings UI should keep using shared primitives where possible: `DropdownMenu`, `SelectMenu`, shared task parts, scroll visibility hook, dismissable layer hook.
 
 ## License

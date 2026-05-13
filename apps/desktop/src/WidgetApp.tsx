@@ -11,6 +11,7 @@ import { showToast } from "./stores/toastStore";
 import { initAppSettings } from "./stores/settingsStore";
 import { executeAgentCommand, hydrateTaskStore, setActiveView, useTaskStore, useVisibleTasks } from "./stores/taskStore";
 import { planCommandFromTranscript, transcribeAudio } from "./services/voiceAgent";
+import { formatVoiceError } from "./services/voiceError";
 import type { SmartView, Task } from "@todoless/shared/types/task";
 
 const widgetViews: Array<{ id: SmartView; label: string; icon: typeof Inbox }> = [
@@ -71,7 +72,7 @@ function WidgetApp() {
       setState("recording");
       setMessage("Listening...");
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "No mic";
+      const msg = formatVoiceError(error);
       showToast(msg, "error");
       setState("error");
       setMessage("Error");
@@ -106,7 +107,7 @@ function WidgetApp() {
         setMessage("Add task");
       }, 1500);
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = formatVoiceError(error);
       showToast(msg, "error");
       setState("error");
       setMessage("Error");

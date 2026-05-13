@@ -101,7 +101,7 @@ Transcript: ${transcript}`;
       "X-Title": "todoless",
     },
     body: JSON.stringify({
-      model: "deepseek/deepseek-v4-flash",
+      model: "moonshotai/kimi-k2.6",
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },

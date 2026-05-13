@@ -11,8 +11,8 @@ todoless turns spoken words into structured tasks. The desktop app remains the M
 | Path | Role |
 |------|------|
 | `apps/desktop` | Tauri + React desktop app, main MVP surface |
-| `apps/app` | Expo mobile app, early implementation |
-| `apps/web` | Next.js landing/waitlist/download/pricing app |
+| `apps/app` | Expo mobile app, early implementation with local tasks, voice capture, notifications, and sync helpers |
+| `apps/web` | Next.js landing/waitlist/download/pricing app with a Resend-backed waitlist route |
 | `packages/shared` | Shared task types, date/id helpers, tokens |
 
 ## Tech Stack
@@ -70,13 +70,13 @@ User presses Ctrl+Shift+Space
     -> MediaRecorder captures audio (webm/opus)
     -> Stop recording -> Blob created
     -> transcribeAudio() -> Tauri invoke -> OpenRouter /v1/audio/transcriptions (Whisper)
-    -> planTasksFromTranscript() -> Tauri invoke -> OpenRouter /v1/chat/completions (DeepSeek V4 Flash)
-    -> Zod validation (AgentCreateTasksSchema)
-    -> createTasksFromAgent() -> SQLite INSERT
+    -> planTasksFromTranscript() -> Tauri invoke -> OpenRouter /v1/chat/completions (Kimi K2.6 primary, fallback chain on retryable failures)
+    -> Zod validation (AgentCommandSchema)
+    -> executeAgentCommand() -> SQLite INSERT/UPDATE/soft delete/reminder/repeat operation
     -> Emit "tasks-updated" event -> Both windows rehydrate
 ```
 
-The LLM is given a strict system prompt that returns only JSON. It infers due dates, reminders, priorities, and tags from natural speech. Recent task titles are included as context to improve coherence.
+The LLM is given a strict system prompt that returns only JSON. It infers due dates, reminders, priorities, repeat rules, tags, and command targets from natural speech. Recent task titles are included as context to improve coherence.
 
 ### Local ASR (Optional)
 
@@ -86,7 +86,7 @@ Users can download a local SenseVoice Small ONNX model (~229 MB). Model manageme
 
 SQLite via `todoless.db`:
 
-- **tasks**: id, title, content, status, due_at, reminder_at, priority, created_at, updated_at, completed_at, deleted_at
+- **tasks**: id, title, content, status, due_at, reminder_at, priority, repeat_rule, created_at, updated_at, completed_at, deleted_at
 - **tags**: id, name, color, created_at, updated_at
 - **task_tags**: task_id, tag_id (junction)
 - **events**: id, type, payload_json, created_at (audit log)
@@ -146,10 +146,11 @@ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable",
 | `apps/desktop/src/hooks/useVoiceCapture.ts` | Full voice lifecycle: recording -> transcribing -> planning -> saved/error. |
 | `apps/desktop/src/services/voiceAgent.ts` | Frontend abstraction over `transcribe_audio` and `plan_tasks` Tauri commands. |
 | `apps/desktop/src/services/db.ts` | SQLite schema, migrations, CRUD, seeding. |
+| `apps/desktop/src/services/sync.ts` | Supabase REST pull/push helper; currently gated by `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. |
 | `apps/desktop/src-tauri/src/lib.rs` | Rust backend: OpenRouter API calls, SenseVoice download, global shortcuts, tray menu, window commands. |
-| `packages/shared/src` | Shared types, date helpers, ids, tokens. |
-| `apps/app/src` | Expo mobile app. |
-| `apps/web/src` | Next.js web app. |
+| `packages/shared/src` | Shared types, date helpers, ids, tokens, sync payload types. |
+| `apps/app/src` | Expo mobile app: local SQLite tasks, voice capture, reminder notifications, sync helpers. |
+| `apps/web/src` | Next.js web app: landing, demo, pricing, download, Resend waitlist API. |
 
 ## Mobile App Notes
 
@@ -159,6 +160,8 @@ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable",
 - Repeat scope is intentionally tiny: users only choose `daily` or `weekly`; `none` is an internal state for ordinary tasks and should not be shown as a selectable repeat option. Completing a repeat task creates the next occurrence and preserves the completed task.
 - Avoid `react-native-reanimated` / worklets in runtime code until the native runtime is verified. A previous runtime mismatch caused `installTurboModule` argument errors. Prefer plain React Native `Pressable`, `Animated`, and StyleSheet states for now.
 - With Zustand on React Native, do not select derived arrays directly inside the selector, e.g. avoid `useTaskStore((s) => s.getOpenTasks())`. Select raw state and derive with `useMemo` to avoid `getSnapshot should be cached` infinite loops.
+- Mobile voice capture currently uses `EXPO_PUBLIC_OPENROUTER_API_KEY` directly from Expo code. Treat this as an early-test path and move it behind secure storage or a backend before a public build.
+- Mobile reminder notifications live in `apps/app/src/services/notifications.ts`, schedule at most 64 open future reminders, and expose Done / Later actions through Expo Notifications.
 - Android export has been verified with:
 
 ```bash
@@ -173,10 +176,27 @@ Create `apps/desktop/.env.local`:
 ```
 OPENROUTER_API_KEY=sk-or-v1-...
 OPENROUTER_ASR_MODEL=openai/whisper-large-v3-turbo
-OPENROUTER_TEXT_MODEL=deepseek/deepseek-v4-flash
+OPENROUTER_TEXT_MODEL=moonshotai/kimi-k2.6
+OPENROUTER_TEXT_FALLBACK_MODELS=qwen/qwen3.6-flash,deepseek/deepseek-v4-flash
 ```
 
 Only `OPENROUTER_API_KEY` is required. The others fall back to sensible defaults in Rust.
+
+Create `apps/app/.env.local` for mobile voice/sync testing:
+
+```
+EXPO_PUBLIC_OPENROUTER_API_KEY=sk-or-v1-...
+EXPO_PUBLIC_SUPABASE_URL=https://...
+EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Only `EXPO_PUBLIC_OPENROUTER_API_KEY` is required for mobile voice capture. Supabase values enable the service helpers, but account UI and full sync orchestration are not yet wired into the product flow.
+
+Create `apps/web/.env.local` for waitlist email:
+
+```
+RESEND_API_KEY=re_...
+```
 
 ## Development
 
@@ -252,8 +272,8 @@ Current sync decisions:
 
 - Local-first on desktop and mobile.
 - Email magic-link auth.
-- Login uploads existing local tasks.
-- Background sync is automatic after sign-in.
+- Login uploads existing local tasks as the intended first-sync behavior.
+- Background sync is the intended behavior after sign-in, but current product UI only exposes a small sync affordance.
 - Last Write Wins by `updated_at`.
 - Soft deletes propagate through `deleted_at`.
 - First cloud scope is `tasks`, `tags`, `task_tags`, and `sync_state`.
@@ -263,12 +283,13 @@ Current sync decisions:
 
 ## AI Task Parsing Rules
 
-The system prompt sent to DeepSeek V4 Flash enforces:
+The system prompt sent to the OpenRouter task-planning model enforces:
 
 - Up to 10 tasks per transcript.
 - `priority`: 3 = urgent/high consequence, 2 = important/soon, 1 = normal, 0 = low pressure.
 - When no time is mentioned: `dueAt` = today at default due time (22:00), `reminderAt` = null.
-- When date but no time: `dueAt` = that date at default due time, `reminderAt` = that date at 09:00.
+- When date but no time: `dueAt` = that date at default due time, `reminderAt` stays null unless the transcript explicitly asks for a reminder.
+- When the transcript asks for a reminder without a precise time: same-day vague reminders default to 20:00; future-day vague reminders default to 09:00.
 - `content` is omitted (null) for short tasks; used only when extra execution context is needed.
 - Tags are coarse-grained strings derived from task subject.
 

@@ -3,6 +3,7 @@ import { emit } from "@tauri-apps/api/event";
 import { executeAgentCommand, getSnapshot } from "../stores/taskStore";
 import { showToast } from "../stores/toastStore";
 import { planCommandFromTranscript, transcribeAudio } from "../services/voiceAgent";
+import { formatVoiceError } from "../services/voiceError";
 
 export type VoiceState = "idle" | "recording" | "transcribing" | "planning" | "saved" | "error";
 
@@ -36,7 +37,7 @@ export function useVoiceCapture() {
         setVoiceMessage("Ctrl Shift Space");
       }, 1800);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = formatVoiceError(error);
       showToast(message, "error");
       setVoiceState("error");
       setVoiceMessage("Error");
@@ -68,7 +69,7 @@ export function useVoiceCapture() {
       setVoiceState("recording");
       setVoiceMessage("Listening...");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Microphone unavailable";
+      const message = formatVoiceError(error);
       showToast(message, "error");
       setVoiceState("error");
       setVoiceMessage("Error");

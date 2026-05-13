@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useSyncExternalStore } from "react";
 
 export type AsrModel = "openai/whisper-large-v3-turbo" | "openai/whisper-1" | "local/sensevoice-small";
-export type TextModel = "deepseek/deepseek-v4-flash" | "local/default";
+export type TextModel = string;
 export type CloseBehavior = "hideToTray" | "quit";
 
 export type AppSettings = {
@@ -25,7 +25,7 @@ const defaultSettings: AppSettings = {
   defaultDueTime: "22:00",
   closeBehavior: "hideToTray",
   asrModel: "openai/whisper-large-v3-turbo",
-  textModel: "deepseek/deepseek-v4-flash",
+  textModel: "moonshotai/kimi-k2.6",
 };
 
 let settings = loadSettings();
@@ -105,7 +105,11 @@ function loadSettings(): AppSettings {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return defaultSettings;
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    return { ...defaultSettings, ...parsed };
+    const merged = { ...defaultSettings, ...parsed };
+    if (merged.textModel !== "local/default" && merged.textModel !== "moonshotai/kimi-k2.6") {
+      merged.textModel = defaultSettings.textModel;
+    }
+    return merged;
   } catch {
     return defaultSettings;
   }
